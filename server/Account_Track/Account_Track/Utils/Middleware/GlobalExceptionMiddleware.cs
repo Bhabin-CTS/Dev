@@ -70,10 +70,10 @@ namespace Account_Track.Utils.Middleware
                     break;
 
                 // ================= NOT FOUND =================
-                case KeyNotFoundException:
+                case KeyNotFoundException knf:
                     context.Response.StatusCode = 404;
                     response.ErrorCode = "NOT_FOUND";
-                    response.Message = "Resource not found";
+                    response.Message = knf.Message;
                     break;
 
                 // ================= SQL ERRORS =================
@@ -81,6 +81,20 @@ namespace Account_Track.Utils.Middleware
                     context.Response.StatusCode = 500;
                     response.ErrorCode = "DATABASE_ERROR";
                     response.Message = "Database operation failed";
+                    break;
+
+                // ================= ArgumentException =================
+                case ArgumentException ae:
+                    context.Response.StatusCode = 400;
+                    response.ErrorCode = "INVALID_ARGUMENT";
+                    response.Message = ae.Message;
+                    break;
+
+                // ================= NullReference =================
+                case NullReferenceException:
+                    context.Response.StatusCode = 500;
+                    response.ErrorCode = "NULL_REFERENCE";
+                    response.Message = "Unexpected null value encountered";
                     break;
 
                 // ================= FALLBACK =================

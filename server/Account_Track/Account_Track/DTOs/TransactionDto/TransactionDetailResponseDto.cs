@@ -5,7 +5,7 @@ namespace Account_Track.DTOs.TransactionDto
     public class TransactionDetailResponseDto
     {
         public int TransactionId { get; set; }
-        public int Createdby { get; set; }
+        public int CreatedBy { get; set; }
         public TransactionType Type { get; set; } 
         public decimal Amount { get; set; }
         public TransactionStatus Status { get; set; }
@@ -15,7 +15,7 @@ namespace Account_Track.DTOs.TransactionDto
         public decimal BalanceBefore { get; set; }
         public decimal BalanceAfter { get; set; }
         public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
     }
 }

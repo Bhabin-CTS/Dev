@@ -19,7 +19,7 @@ namespace Account_Track.Services.Implementations
             _context = db;
         }
 
-        public async Task<ApiResponseDto<object>> CreateTransactionAsync(CreateTransactionRequestDto dto,int userId)
+        public async Task<CreateTransactionResponseDto> CreateTransactionAsync(CreateTransactionRequestDto dto, int userId)
         {
             var traceId = Guid.NewGuid().ToString();
 
@@ -61,27 +61,19 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException(result.ErrorCode, result.Message);
 
             // ===== SUCCESS RESPONSE =====
-            return new ApiResponseDto<object>
+            return new CreateTransactionResponseDto
             {
-                Success = true,
-                Data = new
-                {
-                    transactionId = result.TransactionId,
-                    status = result.Status,
-                    amount = dto.Amount,
-                    type = dto.Type,
-                    isHighValue = result.IsHighValue ?? false,
-                    approvalRequired = result.ApprovalRequired ?? false,
-                    createdAt = result.CreatedAt
-                },
-                Message = result.IsHighValue ?? false
-                    ? "High-value transaction submitted for approval"
-                    : "Transaction completed successfully",
-                TraceId = traceId
+                TransactionId = result.TransactionId,
+                Status = result.Status,
+                Type = dto.Type,
+                Amount = dto.Amount,
+                IsHighValue = result.IsHighValue ?? false,
+                ApprovalRequired = result.ApprovalRequired ?? false,
+                CreatedAt = result.CreatedAt
             };
         }
 
-        public async Task<(List<TransactionListResponseDto>, PaginationDto)>GetTransactionsAsync(GetTransactionsRequestDto request)
+        public async Task<(List<TransactionListResponseDto>, PaginationDto)>GetTransactionsAsync(GetTransactionsRequestDto request,int userId)
         {
             var result = await _context
                 .Set<TransactionListResponseDto>()
@@ -94,7 +86,8 @@ namespace Account_Track.Services.Implementations
                     @FromDate,
                     @ToDate,
                     @Limit,
-                    @Offset",
+                    @Offset,
+                    @userId",
                     new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value),
                     new SqlParameter("@Type", request.Type ?? (object)DBNull.Value),
                     new SqlParameter("@Status", request.Status ?? (object)DBNull.Value),
@@ -102,22 +95,13 @@ namespace Account_Track.Services.Implementations
                     new SqlParameter("@FromDate", request.FromDate ?? (object)DBNull.Value),
                     new SqlParameter("@ToDate", request.ToDate ?? (object)DBNull.Value),
                     new SqlParameter("@Limit", request.Limit),
-                    new SqlParameter("@Offset", request.Offset)
+                    new SqlParameter("@Offset", request.Offset),
+                    new SqlParameter("@userId",userId)
                 )
                 .AsNoTracking()
                 .ToListAsync();
 
             int total = result.FirstOrDefault()?.TotalCount ?? 0;
-            result.ToList();
-            //var data = result.Select(x => new TransactionListResponseDto
-            //{
-            //    TransactionId = x.TransactionId,
-            //    Type = x.Type,
-            //    Amount = x.Amount,
-            //    Status = x.Status,
-            //    IsHighValue = x.IsHighValue,
-            //    CreatedAt = x.CreatedAt
-            //}).ToList();
 
             var pagination = new PaginationDto
             {
@@ -129,21 +113,25 @@ namespace Account_Track.Services.Implementations
             return (result, pagination);
         }
 
-        public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId)
+        public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId,int userId)
         {
-            var result = await _context
-                .Set<TransactionDetailResponseDto>()
-                .FromSqlRaw(
-                    "EXEC usp_GetTransactionById @TransactionId",
-                    new SqlParameter("@TransactionId", transactionId)
-                )
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
+            var list = await _context
+            .Set<TransactionDetailResponseDto>()
+            .FromSqlRaw(
+                "EXEC usp_GetTransactionById @TransactionId, @UserId",
+                new SqlParameter("@TransactionId", transactionId),
+                new SqlParameter("@UserId", userId)
+            )
+            .AsNoTracking()
+            .ToListAsync();
+
+            var result = list.FirstOrDefault();
 
             if (result == null)
-                throw new KeyNotFoundException("TRANSACTION_NOT_FOUND");
+                throw new KeyNotFoundException("TRANSACTION_NOT_FOUND_OR_ACCESS_DENIED");
 
             return result;
+
         }
     }
 

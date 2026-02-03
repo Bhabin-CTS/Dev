@@ -39,6 +39,7 @@ namespace Account_Track.Model
         public ICollection<t_User>? Users { get; set; }
         public ICollection<t_Account>? Accounts { get; set; }
         public ICollection<t_Report>? Reports { get; set; }
+        public ICollection<t_Transaction>? Transactions { get; set; }
 
     }
 

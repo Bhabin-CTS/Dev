@@ -12,11 +12,24 @@ namespace Account_Track.Migrations
         {
             var sp = @"
             CREATE PROCEDURE [dbo].[usp_GetTransactionById]
-                @TransactionId INT
+                @TransactionId INT,
+                @UserId INT
             AS
             BEGIN
                 SET NOCOUNT ON;
- 
+
+                DECLARE @UserBranchId INT;
+                DECLARE @UserRole INT;
+
+                DECLARE @ROLE_ADMIN INT = 3;
+
+                -- Get user info from DB
+                SELECT 
+                    @UserBranchId = BranchId,
+                    @UserRole = Role
+                FROM t_User
+                WHERE UserId = @UserId;
+
                 SELECT
                     TransactionId,
                     CreatedByUserId As CreatedBy,
@@ -31,7 +44,11 @@ namespace Account_Track.Migrations
                     CreatedAt,
                     UpdatedAt
                 FROM t_Transaction
-                WHERE TransactionId = @TransactionId;
+                WHERE TransactionId = @TransactionId
+                AND (
+                        @UserRole = @ROLE_ADMIN
+                        OR BranchId = @UserBranchId
+                    );
             END
             ";
             migrationBuilder.Sql(sp);

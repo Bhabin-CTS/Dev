@@ -21,16 +21,25 @@ namespace Account_Track.Controllers
         {
             int userId = 1;
 
-            var result = await _service.CreateTransactionAsync(dto, userId);
+            var data = await _service.CreateTransactionAsync(dto, userId);
 
-            return StatusCode(201, result);
+            return StatusCode(201, new ApiResponseDto<CreateTransactionResponseDto>
+            {
+                Success = true,
+                Data = data,
+                Message = data.IsHighValue ?? false
+                ? "High-value transaction submitted for approval"
+                : "Transaction completed successfully",
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
 
         [HttpGet]
         public async Task<IActionResult> GetTransactions([FromQuery] GetTransactionsRequestDto request)
         {
+            int userId = 1;
             var (data, pagination) =
-                await _service.GetTransactionsAsync(request);
+                await _service.GetTransactionsAsync(request,userId);
 
             return Ok(new ApiResponseDto<object>
             {
@@ -46,7 +55,8 @@ namespace Account_Track.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetTransactionDetail(int id)
         {
-            var data = await _service.GetTransactionByIdAsync(id);
+            int userId = 1;
+            var data = await _service.GetTransactionByIdAsync(id,userId);
 
             return Ok(new ApiResponseDto<TransactionDetailResponseDto>
             {

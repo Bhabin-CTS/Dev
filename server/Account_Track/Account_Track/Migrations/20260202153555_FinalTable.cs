@@ -167,6 +167,7 @@ namespace Account_Track.Migrations
                 {
                     TransactionID = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
                     CreatedByUserId = table.Column<int>(type: "int", nullable: false),
                     FromAccountId = table.Column<int>(type: "int", nullable: false),
                     ToAccountId = table.Column<int>(type: "int", nullable: true),
@@ -194,6 +195,12 @@ namespace Account_Track.Migrations
                         column: x => x.ToAccountId,
                         principalTable: "t_Account",
                         principalColumn: "AccountId");
+                    table.ForeignKey(
+                        name: "FK_t_Transaction_t_Branch_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "t_Branch",
+                        principalColumn: "BranchId",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_t_Transaction_t_User_CreatedByUserId",
                         column: x => x.CreatedByUserId,
@@ -374,6 +381,16 @@ namespace Account_Track.Migrations
                 name: "IX_Report_Date",
                 table: "t_Report",
                 column: "GeneratedDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_t_Transaction_BranchId",
+                table: "t_Transaction",
+                column: "BranchId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Txn_Branch",
+                table: "t_Transaction",
+                columns: new[] { "Status", "BranchId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Txn_FromAcc",

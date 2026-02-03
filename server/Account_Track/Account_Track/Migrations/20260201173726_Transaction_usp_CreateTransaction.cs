@@ -64,11 +64,23 @@ namespace Account_Track.Migrations
                         SELECT @BalanceBefore = Balance
                         FROM t_Account
                         WHERE AccountId = @FromAccountId;
- 
+                        
+                        ----------------------------------------------------
+                        -- FETCH BRANCH ID FROM USER
+                        ----------------------------------------------------
+                        DECLARE @BranchId INT;
+                        SELECT @BranchId = BranchId
+                        FROM t_User
+                        WHERE UserId = @CreatedByUserId;
  
                         ----------------------------------------------------
                         -- VALIDATIONS
                         ----------------------------------------------------
+                        IF @BranchId IS NULL
+                        BEGIN
+                            THROW 50002, 'Invalid User: Branch not found', 1;
+                        END
+
                         IF @Type IN (2,3) AND @BalanceBefore < @Amount
                         BEGIN
                             THROW 50001, 'Insufficient balance for transaction', 1;
@@ -94,6 +106,7 @@ namespace Account_Track.Migrations
                         ----------------------------------------------------
                         INSERT INTO t_Transaction
                         (
+                            BranchId,
                             CreatedByUserId,
                             FromAccountId,
                             ToAccountId,
@@ -108,6 +121,7 @@ namespace Account_Track.Migrations
                         )
                         VALUES
                         (
+                            @BranchId,
                             @CreatedByUserId,
                             @FromAccountId,
                             @ToAccountId,
@@ -129,17 +143,9 @@ namespace Account_Track.Migrations
                         ----------------------------------------------------
                         IF @IsHighValue = 1
                         BEGIN
- 
-                            DECLARE @BranchId INT;
+
                             DECLARE @ManagerUserId INT;
- 
- 
-                            -- Get branch of the officer who created transaction
-                            SELECT @BranchId = BranchId
-                            FROM t_User
-                            WHERE UserId = @CreatedByUserId;
- 
- 
+
                             -- Find active manager of same branch
                             SELECT TOP 1 @ManagerUserId = UserId
                             FROM t_User

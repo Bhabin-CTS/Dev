@@ -23,6 +23,7 @@ namespace Account_Track.Data
         //Dto
         public DbSet<CreateTnxSpResult> CreateTnxSpResult { get; set; }
         public DbSet<TransactionListResponseDto> AccountListView { get; set; }
+        public DbSet<TransactionDetailResponseDto> TransactionDetailResponse { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -33,6 +34,10 @@ namespace Account_Track.Data
             .ToView(null);
 
             modelBuilder.Entity<TransactionListResponseDto>()
+            .HasNoKey()
+            .ToView(null);
+
+            modelBuilder.Entity<TransactionDetailResponseDto>()
             .HasNoKey()
             .ToView(null);
 
@@ -92,7 +97,14 @@ namespace Account_Track.Data
                 .WithMany(a => a.Transactions)
                 .HasForeignKey(t => t.FromAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
- 
+
+            // Transaction -> BranchId
+            modelBuilder.Entity<t_Transaction>()
+                .HasOne(t => t.Branch)
+                .WithMany(a => a.Transactions)
+                .HasForeignKey(t => t.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Transaction -> ToAccount (Optional)
             modelBuilder.Entity<t_Transaction>()
                 .HasOne(t => t.ToAccount)

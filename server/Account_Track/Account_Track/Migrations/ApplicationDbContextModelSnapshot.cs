@@ -69,7 +69,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ErrorCode")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool?>("IsHighValue")
@@ -89,6 +88,34 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     b.Property<int?>("Type")
+                        .HasColumnType("int");
+
+                    b.ToTable((string)null);
+
+                    b.ToView(null, (string)null);
+                });
+
+            modelBuilder.Entity("Account_Track.DTOs.TransactionDto.TransactionListResponseDto", b =>
+                {
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsHighValue")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
                         .HasColumnType("int");
 
                     b.ToTable((string)null);
@@ -418,6 +445,9 @@ namespace Account_Track.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -447,6 +477,10 @@ namespace Account_Track.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.HasKey("TransactionID");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex(new[] { "Status", "BranchId" }, "IX_Txn_Branch");
 
                     b.HasIndex(new[] { "FromAccountId" }, "IX_Txn_FromAcc");
 
@@ -623,6 +657,12 @@ namespace Account_Track.Migrations
 
             modelBuilder.Entity("Account_Track.Model.t_Transaction", b =>
                 {
+                    b.HasOne("Account_Track.Model.t_Branch", "Branch")
+                        .WithMany("Transactions")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Account_Track.Model.t_User", "CreatedByUser")
                         .WithMany("Transactions")
                         .HasForeignKey("CreatedByUserId")
@@ -639,6 +679,8 @@ namespace Account_Track.Migrations
                         .WithMany()
                         .HasForeignKey("ToAccountId")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Branch");
 
                     b.Navigation("CreatedByUser");
 
@@ -668,6 +710,8 @@ namespace Account_Track.Migrations
                     b.Navigation("Accounts");
 
                     b.Navigation("Reports");
+
+                    b.Navigation("Transactions");
 
                     b.Navigation("Users");
                 });

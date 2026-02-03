@@ -13,11 +13,17 @@ namespace Account_Track.Model
     [Index(nameof(FromAccountId), Name = "IX_Txn_FromAcc")]
     [Index(nameof(ToAccountId), Name = "IX_Txn_ToAcc")]
     [Index(nameof(CreatedByUserId), nameof(CreatedAt), Name = "IX_Txn_User_Date")]
+    [Index(nameof(Status), nameof(BranchId), Name = "IX_Txn_Branch")]
     [Table("t_Transaction")]
     public class t_Transaction
     {
         [Key]
         public int TransactionID { get; set; }
+
+        [Required]
+        public int BranchId { get; set; }
+        [ForeignKey(nameof(BranchId))]
+        public t_Branch? Branch { get; set; }
 
         [Required]
         public int CreatedByUserId { get; set; }
