@@ -1,166 +1,120 @@
-﻿using Account_Track.DTOs.NewFolder;
+﻿using Account_Track.Data;
+using Account_Track.DTOs.AuthDto;
+using Account_Track.Services.Interfaces;
 using Account_Track.Utils.Enum;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Data.SqlClient;
 using System;
-using System.Text;
+using Microsoft.EntityFrameworkCore;
 
-public class AuthService
+namespace Account_Track.Services.Implementations
 {
-    private readonly AppDbContext _context;
-    private readonly JwtService _jwtService;
-
-    public AuthService(AppDbContext context, JwtService jwtService)
+    public class AuthService: IAuthService
     {
-        _context = context;
-        _jwtService = jwtService;
-    }
+        private readonly ApplicationDbContext _context;
+        private readonly IJwtService _jwtService;
+        private readonly IConfiguration _config;
 
-    public async Task<LoginResponseDto> Login(LoginRequestDto dto)
-    {
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == dto.Email);
-
-        if (user == null || user.PasswordHash != dto.Password)
-            throw new Exception("Invalid credentials");
-
-        if (user.Status != UserStatus.Active)
-            throw new Exception("User not active");
-
-        // Generate tokens
-        var accessToken = _jwtService.GenerateAccessToken(user);
-        var refreshToken = _jwtService.GenerateRefreshToken();
-
-        // Store access token in DB
-        user.AccessToken = accessToken;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return new LoginResponseDto
+        public AuthService(ApplicationDbContext context, IJwtService jwtService, IConfiguration config)
         {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken
-        };
-    }
+            _context = context;
+            _jwtService = jwtService;
+            _config = config;
+        }
 
-    public async Task<LoginResponseDto> RefreshToken(RefreshTokenRequestDto dto)
-    {
-        var principal =
-            _jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
-
-        var userId =
-            int.Parse(principal.FindFirst("UserId").Value);
-
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.UserId == userId);
-
-        if (user == null)
-            throw new Exception("Invalid user");
-
-        // YOUR MAIN REQUIREMENT
-        if (user.AccessToken != dto.AccessToken)
-            throw new Exception("Access token mismatch");
-
-        // Generate new tokens
-        var newAccessToken = _jwtService.GenerateAccessToken(user);
-        var newRefreshToken = _jwtService.GenerateRefreshToken();
-
-        user.AccessToken = newAccessToken;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return new LoginResponseDto
+        public async Task<LoginResponseDto> Login(LoginRequestDto dto)
         {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshToken
-        };
-    }
-}
-using Microsoft.AspNetCore.Mvc;
 
-[ApiController]
-[Route("api/auth")]
-public class AuthController : ControllerBase
-{
-    private readonly AuthService _authService;
+            var users = await _context.Users
+                .FromSqlRaw(
+                    "EXEC USP_GetUserByEmail @Email",
+                    new SqlParameter("@Email", dto.Email))
+                .ToListAsync();
 
-    public AuthController(AuthService authService)
-    {
-        _authService = authService;
-    }
+            var user = users.FirstOrDefault();
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginRequestDto dto)
-    {
-        var result = await _authService.Login(dto);
-        return Ok(result);
-    }
+            if (user == null)
+                throw new Exception("User not found");
 
-    [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(RefreshTokenRequestDto dto)
-    {
-        var result = await _authService.RefreshToken(dto);
-        return Ok(result);
-    }
-}
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<JwtService>();
+            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+                throw new Exception("Invalid credentials");
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme =
-        JwtBearerDefaults.AuthenticationScheme;
+            if (user.Status != UserStatus.Active)
+                throw new Exception("User is not active");
 
-    options.DefaultChallengeScheme =
-        JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters =
-        new TokenValidationParameters
+            if (user.IsLocked)
+                throw new Exception("User account is locked");
+
+            var accessToken =
+                _jwtService.GenerateAccessToken(user);
+
+            var refreshToken =
+                _jwtService.GenerateRefreshToken();
+
+
+            var refreshDays = Convert.ToDouble(_config["Jwt:RefreshTokenExpiryDays"] ?? "7");
+            var refreshExpiry = DateTime.UtcNow.AddDays(refreshDays);
+
+
+            // Store refresh token in LoginLog
+            await _context.Database.ExecuteSqlRawAsync(
+                "EXEC usp_InsertLoginLog @UserId, @RefreshToken, @RefreshTokenExpiry",
+                new SqlParameter("@UserId", user.UserId),
+                new SqlParameter("@RefreshToken", refreshToken),
+                new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
+            );
+
+            return new LoginResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            };
+        }
+
+        public async Task<LoginResponseDto> RefreshToken(RefreshTokenRequestDto dto)
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
+            var principal =
+                _jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
 
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
+            var userId =
+                int.Parse(principal.FindFirst("UserId").Value);
 
-            IssuerSigningKey =
-                new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(
-                        builder.Configuration["Jwt:Key"]
-                    )
+            var user = await _context.Users
+                .FromSqlRaw(
+                    "EXEC usp_GetUserById @UserId",
+                    new SqlParameter("@UserId", userId)
                 )
-        };
-});
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
 
-app.UseAuthentication();
-app.UseAuthorization();
+            if(user == null)
+                throw new Exception("Invalid user");
 
-[Authorize(Roles = "Officer")]
-[HttpPost]
-public IActionResult CreateTransaction()
-{
-    return Ok();
-}
+            // CORE VALIDATION
+            //if (user.AccessToken != dto.AccessToken)
+            //    throw new Exception("Access token mismatch");
 
-[Authorize(Roles = "Admin,Manager,Officer")]
-[HttpGet]
-public IActionResult GetTransactions()
-{
-    return Ok();
-}
+            // ✅ Validate refresh token (not revoked, not expired)
+            var loginLog = await _context.LoginLogs
+                .FromSqlRaw(
+                    "EXEC usp_GetValidLoginLog @UserId, @RefreshToken",
+                    new SqlParameter("@UserId", userId),
+                    new SqlParameter("@RefreshToken", dto.RefreshToken)
+                )
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
 
-[Authorize(Roles = "Admin")]
-[HttpDelete("{id}")]
-public IActionResult DeleteTransaction(int id)
-{
-    return Ok();
+            if (loginLog == null)
+                throw new Exception("Invalid / expired / revoked refresh token");
+
+            var newAccessToken =
+                _jwtService.GenerateAccessToken(user);
+
+
+            return new LoginResponseDto
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = dto.RefreshToken // Reuse the same refresh token until it expires
+            };
+        }
+    }
 }

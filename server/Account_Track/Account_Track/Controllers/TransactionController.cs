@@ -1,6 +1,7 @@
 ﻿using Account_Track.DTOs;
 using Account_Track.DTOs.TransactionDto;
 using Account_Track.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Account_Track.Controllers
@@ -17,9 +18,10 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Officer")]
         public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionRequestDto dto)
         {
-            int userId = 1;
+            int userId = int.Parse(User.FindFirst("UserId").Value);
 
             var data = await _service.CreateTransactionAsync(dto, userId);
 
@@ -35,13 +37,14 @@ namespace Account_Track.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetTransactions([FromQuery] GetTransactionsRequestDto request)
         {
-            int userId = 1;
+            int userId = int.Parse(User.FindFirst("UserId").Value);
             var (data, pagination) =
-                await _service.GetTransactionsAsync(request,userId);
+                await _service.GetTransactionsAsync(request, userId);
 
-            return Ok(new ApiResponseDto<object>
+            return Ok(new ApiResponseWithPagination<object>
             {
                 Success = true,
                 Data = data,
@@ -55,8 +58,8 @@ namespace Account_Track.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetTransactionDetail(int id)
         {
-            int userId = 1;
-            var data = await _service.GetTransactionByIdAsync(id,userId);
+            int userId = int.Parse(User.FindFirst("UserId").Value);
+            var data = await _service.GetTransactionByIdAsync(id, userId);
 
             return Ok(new ApiResponseDto<TransactionDetailResponseDto>
             {

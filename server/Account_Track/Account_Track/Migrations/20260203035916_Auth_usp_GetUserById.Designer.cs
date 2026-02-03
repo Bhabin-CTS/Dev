@@ -4,6 +4,7 @@ using Account_Track.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260203035916_Auth_usp_GetUserById")]
+    partial class Auth_usp_GetUserById
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -380,18 +383,10 @@ namespace Account_Track.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LoginId"));
 
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("LoginAt")
+                    b.Property<DateTime>("LogOutAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("RefreshToken")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("RefreshTokenExpiry")
+                    b.Property<DateTime>("LoginAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
@@ -399,13 +394,9 @@ namespace Account_Track.Migrations
 
                     b.HasKey("LoginId");
 
-                    b.HasIndex(new[] { "RefreshToken" }, "IX_Login_RefreshToken");
-
-                    b.HasIndex(new[] { "UserId" }, "IX_Login_UserId");
-
-                    b.HasIndex(new[] { "UserId", "RefreshToken" }, "IX_Login_UserId_RefreshToken");
-
                     b.HasIndex(new[] { "UserId", "LoginAt" }, "IX_Login_User_Date");
+
+                    b.HasIndex(new[] { "UserId", "LogOutAt" }, "IX_Logout_User_Date");
 
                     b.ToTable("t_LoginLog");
                 });
@@ -561,6 +552,11 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
+
+                    b.Property<string>("AccessToken")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<int>("BranchId")
                         .HasColumnType("int");

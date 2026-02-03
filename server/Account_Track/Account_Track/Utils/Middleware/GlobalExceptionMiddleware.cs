@@ -32,12 +32,12 @@ namespace Account_Track.Utils.Middleware
                 await HandleException(context, ex, traceId);
             }
         }
-   
 
-    private static async Task HandleException(
-        HttpContext context,
-        Exception ex,
-        string traceId)
+
+        private static async Task HandleException(
+            HttpContext context,
+            Exception ex,
+            string traceId)
         {
             var response = new ErrorResponseDto
             {

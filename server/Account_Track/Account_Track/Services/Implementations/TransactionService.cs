@@ -6,11 +6,10 @@ using Account_Track.Utils;
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 
 namespace Account_Track.Services.Implementations
 {
-    public class TransactionService: ITransactionService
+    public class TransactionService : ITransactionService
     {
         private readonly ApplicationDbContext _context;
 
@@ -21,8 +20,6 @@ namespace Account_Track.Services.Implementations
 
         public async Task<CreateTransactionResponseDto> CreateTransactionAsync(CreateTransactionRequestDto dto, int userId)
         {
-            var traceId = Guid.NewGuid().ToString();
-
             // ===== VALIDATION =====
             if (dto.Type == TransactionType.Transfer && dto.FromAccountId == dto.ToAccountId)
                 throw new BusinessException("INVALID_REQUEST",
@@ -40,7 +37,6 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_REQUEST",
                     "ToAccountId should be null for deposit and withdrawal transactions");
 
-
             // ===== CALL STORED PROCEDURE =====
             var result = (await _context.CreateTnxSpResult
             .FromSqlRaw(
@@ -53,7 +49,7 @@ namespace Account_Track.Services.Implementations
                 dto.Remarks
             )
             .AsNoTracking()
-            .ToListAsync())      
+            .ToListAsync())
             .First();
 
             // ===== ERROR FROM DB =====
@@ -73,7 +69,7 @@ namespace Account_Track.Services.Implementations
             };
         }
 
-        public async Task<(List<TransactionListResponseDto>, PaginationDto)>GetTransactionsAsync(GetTransactionsRequestDto request,int userId)
+        public async Task<(List<TransactionListResponseDto>, PaginationDto)> GetTransactionsAsync(GetTransactionsRequestDto request, int userId)
         {
             var result = await _context
                 .Set<TransactionListResponseDto>()
@@ -96,7 +92,7 @@ namespace Account_Track.Services.Implementations
                     new SqlParameter("@ToDate", request.ToDate ?? (object)DBNull.Value),
                     new SqlParameter("@Limit", request.Limit),
                     new SqlParameter("@Offset", request.Offset),
-                    new SqlParameter("@userId",userId)
+                    new SqlParameter("@userId", userId)
                 )
                 .AsNoTracking()
                 .ToListAsync();
@@ -113,7 +109,7 @@ namespace Account_Track.Services.Implementations
             return (result, pagination);
         }
 
-        public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId,int userId)
+        public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId, int userId)
         {
             var list = await _context
             .Set<TransactionDetailResponseDto>()

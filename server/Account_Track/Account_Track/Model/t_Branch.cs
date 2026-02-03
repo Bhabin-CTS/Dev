@@ -11,14 +11,14 @@ namespace Account_Track.Model
     public class t_Branch
     {
         [Key]
-        public int BranchId {  get; set; }
+        public int BranchId { get; set; }
 
-        [MaxLength(100), Required] 
+        [MaxLength(100), Required]
         public required string BranchName { get; set; }
 
-        [MaxLength(50), Required] 
-        public required string IFSCCode {  get; set; }
-        
+        [MaxLength(50), Required]
+        public required string IFSCCode { get; set; }
+
         [MaxLength(500), Required]
         public required string City { get; set; }
 
@@ -34,7 +34,7 @@ namespace Account_Track.Model
         [Required]
         public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime? UpdatedAt { get; set; } = null; 
+        public DateTime? UpdatedAt { get; set; } = null;
 
         public ICollection<t_User>? Users { get; set; }
         public ICollection<t_Account>? Accounts { get; set; }

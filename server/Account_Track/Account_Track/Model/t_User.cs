@@ -33,9 +33,6 @@ namespace Account_Track.Model
 
         [MaxLength(255), Required]
         public required string PasswordHash { get; set; }
-
-        [MaxLength(255), Required]
-        public required string AccessToken { get; set; }= string.Empty; //required but default is null
         
         [Required]
         public required int FalseAttempt { get; set; } = 0;

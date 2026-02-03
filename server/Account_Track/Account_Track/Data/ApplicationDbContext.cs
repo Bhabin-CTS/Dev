@@ -30,7 +30,7 @@ namespace Account_Track.Data
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<CreateTnxSpResult>()
-            .HasNoKey()                
+            .HasNoKey()
             .ToView(null);
 
             modelBuilder.Entity<TransactionListResponseDto>()
@@ -76,21 +76,21 @@ namespace Account_Track.Data
                 .WithMany(b => b.Users)
                 .HasForeignKey(u => u.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
- 
+
             // Account -> Branch
             modelBuilder.Entity<t_Account>()
                 .HasOne(a => a.Branch)
                 .WithMany(b => b.Accounts)
                 .HasForeignKey(a => a.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
- 
+
             // Account -> CreatedByUser
             modelBuilder.Entity<t_Account>()
                 .HasOne(a => a.CreatedByUser)
                 .WithMany(u => u.Accounts)
                 .HasForeignKey(a => a.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
- 
+
             // Transaction -> FromAccount
             modelBuilder.Entity<t_Transaction>()
                 .HasOne(t => t.FromAccount)
@@ -125,35 +125,35 @@ namespace Account_Track.Data
                 .WithMany(t => t.Approvals)
                 .HasForeignKey(a => a.TransactionId)
                 .OnDelete(DeleteBehavior.Cascade);
- 
+
             // Approval -> Reviewer(User)
             modelBuilder.Entity<t_Approval>()
                 .HasOne(a => a.Reviewer)
                 .WithMany(u => u.Approvals)
                 .HasForeignKey(a => a.ReviewerId)
                 .OnDelete(DeleteBehavior.Restrict);
- 
+
             // Notification -> User
             modelBuilder.Entity<t_Notification>()
                 .HasOne(n => n.User)
                 .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
- 
+
             // LoginLog -> User
             modelBuilder.Entity<t_LoginLog>()
                 .HasOne(l => l.User)
                 .WithMany(u => u.LoginLogs)
                 .HasForeignKey(l => l.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
- 
+
             // AuditLog -> User
             modelBuilder.Entity<t_AuditLog>()
                 .HasOne(a => a.User)
                 .WithMany(u => u.AuditLogs)
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.NoAction);
- 
+
             // AuditLog -> LoginLog
             modelBuilder.Entity<t_AuditLog>()
                 .HasOne(a => a.LoginLog)
@@ -161,18 +161,18 @@ namespace Account_Track.Data
                 .HasForeignKey(a => a.LoginId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-                var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }; 
-                modelBuilder.Entity<t_Report>()
-                    .Property(r => r.Scope)
-                    .HasConversion(
-                    v => JsonSerializer.Serialize(v, options), 
-                    v => JsonSerializer.Deserialize<Scope>(v, options)!); 
-            
-                modelBuilder.Entity<t_Report>()
-                    .Property(r => r.Metrics)
-                    .HasConversion(
-                    v => JsonSerializer.Serialize(v, options),
-                    v => JsonSerializer.Deserialize<Metrics>(v, options)!);
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            modelBuilder.Entity<t_Report>()
+                .Property(r => r.Scope)
+                .HasConversion(
+                v => JsonSerializer.Serialize(v, options),
+                v => JsonSerializer.Deserialize<Scope>(v, options)!);
+
+            modelBuilder.Entity<t_Report>()
+                .Property(r => r.Metrics)
+                .HasConversion(
+                v => JsonSerializer.Serialize(v, options),
+                v => JsonSerializer.Deserialize<Metrics>(v, options)!);
 
         }
     }

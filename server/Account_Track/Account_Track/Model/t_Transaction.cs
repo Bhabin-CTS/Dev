@@ -39,10 +39,10 @@ namespace Account_Track.Model
         [ForeignKey(nameof(ToAccountId))]
         public t_Account? ToAccount { get; set; }
 
-        [Required] 
+        [Required]
         public TransactionType Type { get; set; }
 
-        [Required, Column(TypeName = "decimal(18,2)")] 
+        [Required, Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
         [Required]
@@ -58,11 +58,11 @@ namespace Account_Track.Model
         public int? BalanceAfterTxn { get; set; }
 
         [MaxLength(500)]
-        public string? flagReason {  get; set; }
-        
+        public string? flagReason { get; set; }
+
         [Required]
         public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-      
+
         public DateTime? UpdatedAt { get; set; } = null;
 
         public ICollection<t_Approval>? Approvals { get; set; }

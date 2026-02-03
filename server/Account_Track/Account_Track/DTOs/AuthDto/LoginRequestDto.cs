@@ -1,4 +1,4 @@
-﻿namespace Account_Track.DTOs.NewFolder
+﻿namespace Account_Track.DTOs.AuthDto
 {
     public class LoginRequestDto
     {
