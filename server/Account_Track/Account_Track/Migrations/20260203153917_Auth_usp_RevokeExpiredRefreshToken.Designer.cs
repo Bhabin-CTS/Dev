@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260203035848_Auth_usp_UpdateAccessToken")]
-    partial class Auth_usp_UpdateAccessToken
+    [Migration("20260203153917_Auth_usp_RevokeExpiredRefreshToken")]
+    partial class Auth_usp_RevokeExpiredRefreshToken
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -383,10 +383,18 @@ namespace Account_Track.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LoginId"));
 
-                    b.Property<DateTime>("LogOutAt")
-                        .HasColumnType("datetime2");
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("LoginAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("RefreshTokenExpiry")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
@@ -394,9 +402,13 @@ namespace Account_Track.Migrations
 
                     b.HasKey("LoginId");
 
-                    b.HasIndex(new[] { "UserId", "LoginAt" }, "IX_Login_User_Date");
+                    b.HasIndex(new[] { "RefreshToken" }, "IX_Login_RefreshToken");
 
-                    b.HasIndex(new[] { "UserId", "LogOutAt" }, "IX_Logout_User_Date");
+                    b.HasIndex(new[] { "UserId" }, "IX_Login_UserId");
+
+                    b.HasIndex(new[] { "UserId", "RefreshToken" }, "IX_Login_UserId_RefreshToken");
+
+                    b.HasIndex(new[] { "UserId", "LoginAt" }, "IX_Login_User_Date");
 
                     b.ToTable("t_LoginLog");
                 });
@@ -552,11 +564,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
-
-                    b.Property<string>("AccessToken")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
 
                     b.Property<int>("BranchId")
                         .HasColumnType("int");

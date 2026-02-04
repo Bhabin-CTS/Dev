@@ -9,7 +9,7 @@ namespace Account_Track.Controllers
     [ApiController]
     [Route("v1/[controller]")]
     public class AccountController : ControllerBase
-    {
+    { 
         private readonly IAccountService _accountService;
         private readonly ILogger<AccountController> _logger;
 

@@ -1,4 +1,5 @@
 using Account_Track.Data;
+using Account_Track.DTOs;
 using Account_Track.Services.Implementations;
 using Account_Track.Services.Interfaces;
 using Account_Track.Utils.Middleware;
@@ -51,6 +52,45 @@ namespace Account_Track
                                 )
                             )
                     };
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+
+                        var result = System.Text.Json.JsonSerializer.Serialize(new ErrorResponseDto
+                        {
+                            Success = false,
+                            ErrorCode = "401",
+                            Message = "Unauthorized - Invalid or missing token",
+                            Timestamp = DateTime.UtcNow,
+                            TraceId = context.HttpContext.TraceIdentifier
+
+                        });
+
+                        return context.Response.WriteAsync(result);
+                    },
+
+                    OnForbidden = context =>
+                    {
+                        context.Response.StatusCode = 403;
+                        context.Response.ContentType = "application/json";
+
+                        var result = System.Text.Json.JsonSerializer.Serialize(new ErrorResponseDto
+                        {
+                            Success = false,
+                            ErrorCode = "403",
+                            Message = "Forbidden - You don't have permission",
+                            Timestamp = DateTime.UtcNow,
+                            TraceId = context.HttpContext.TraceIdentifier
+                        });
+
+                        return context.Response.WriteAsync(result);
+                    }
+                };
             });
             // Register services or dependency injection 
             builder.Services.AddScoped<IUserService, UserService>();
@@ -71,11 +111,22 @@ namespace Account_Track
                     options.SwaggerEndpoint("/openapi/v1.json", "v1");
                 });
             }
-            app.UseAuthentication();
-            app.UseAuthorization();
+
+            // 1. Global exception handling FIRST
             app.UseMiddleware<GlobalExceptionMiddleware>();
+
+            // 2. Security related middleware early
             app.UseHttpsRedirection();
+
+            // 3. Authentication BEFORE Authorization
+            app.UseAuthentication();
+
+            // 4. Authorization AFTER Authentication
+            app.UseAuthorization();
+
+            // 5. Map controllers LAST
             app.MapControllers();
+
             app.Run();
         }
     }

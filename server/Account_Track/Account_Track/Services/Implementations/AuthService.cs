@@ -35,8 +35,20 @@ namespace Account_Track.Services.Implementations
             if (user == null)
                 throw new Exception("User not found");
 
+            // 🔒 CHECK IF ACCOUNT LOCKED
+            if (user.IsLocked)
+                throw new Exception("User account is locked due to multiple failed attempts");
+
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+            {
+                // Update failed attempts
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXEC usp_UpdateUserFailedAttempt @UserId",
+                    new SqlParameter("@UserId", user.UserId)
+                );
+
                 throw new Exception("Invalid credentials");
+            }
 
             if (user.Status != UserStatus.Active)
                 throw new Exception("User is not active");
@@ -44,12 +56,9 @@ namespace Account_Track.Services.Implementations
             if (user.IsLocked)
                 throw new Exception("User account is locked");
 
-            var accessToken =
-                _jwtService.GenerateAccessToken(user);
-
-            var refreshToken =
-                _jwtService.GenerateRefreshToken();
-
+            // GENERATE TOKENS
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshToken = _jwtService.GenerateRefreshToken();
 
             var refreshDays = Convert.ToDouble(_config["Jwt:RefreshTokenExpiryDays"] ?? "7");
             var refreshExpiry = DateTime.UtcNow.AddDays(refreshDays);
@@ -61,6 +70,11 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@UserId", user.UserId),
                 new SqlParameter("@RefreshToken", refreshToken),
                 new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
+            );
+
+            await _context.Database.ExecuteSqlRawAsync(
+                "EXEC usp_ResetUserAttempts @UserId",
+                new SqlParameter("@UserId", user.UserId)
             );
 
             return new LoginResponseDto
@@ -104,10 +118,18 @@ namespace Account_Track.Services.Implementations
                 .FirstOrDefaultAsync();
 
             if (loginLog == null)
-                throw new Exception("Invalid / expired / revoked refresh token");
+            {
+                // Try to revoke if expired
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXEC usp_RevokeExpiredRefreshToken @UserId, @RefreshToken",
+                    new SqlParameter("@UserId", userId),
+                    new SqlParameter("@RefreshToken", dto.RefreshToken)
+                );
 
-            var newAccessToken =
-                _jwtService.GenerateAccessToken(user);
+                throw new Exception("Invalid or expired refresh token");
+            }
+
+            var newAccessToken = _jwtService.GenerateAccessToken(user);
 
 
             return new LoginResponseDto

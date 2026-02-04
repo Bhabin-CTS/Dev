@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Account_Track.Services.Implementations
 {
     public class TransactionService : ITransactionService
-    {
+    { 
         private readonly ApplicationDbContext _context;
 
         public TransactionService(ApplicationDbContext db)
