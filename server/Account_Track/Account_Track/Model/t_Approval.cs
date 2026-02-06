@@ -32,7 +32,7 @@ namespace Account_Track.Model
         public DecisionType Decision { set; get; } = DecisionType.Pending;
 
         [MaxLength(500)]
-        public string? Comments { set; get; }
+        public string? Comments { set; get; } = default!;
 
         public DateTime? DecidedAt { set; get; } = null;
 

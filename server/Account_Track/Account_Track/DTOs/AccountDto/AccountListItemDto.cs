@@ -1,22 +1,17 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
 
 namespace Account_Track.DTOs.AccountDto
 {
     public class AccountListItemDto
     {
         public int AccountID { get; set; }
-        public string CustomerName { get; set; } = default!;
-        public int CustomerID { get; set; }
-        public int AccountType { get; set; }  // "Savings" | "Current"
-        [Precision(18, 2)]
+        public int AccountType { get; set; }       // int to match view mapping
         public decimal Balance { get; set; }
-        public int Status { get; set; }      // "Active" | "Closed"
         public int BranchId { get; set; }
         public string BranchName { get; set; } = string.Empty;
-        //public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+        public int CustomerID { get; set; }        // int to match view mapping
+        public string CustomerName { get; set; } = string.Empty;
         public string RowVersionBase64 { get; set; } = string.Empty;
-
-
-
+        public int Status { get; set; }            // int to match view mapping
     }
 }

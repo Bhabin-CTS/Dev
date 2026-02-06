@@ -64,7 +64,6 @@ namespace Account_Track.Migrations
                     Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     BranchId = table.Column<int>(type: "int", nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    AccessToken = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     FalseAttempt = table.Column<int>(type: "int", nullable: false),
                     IsLocked = table.Column<bool>(type: "bit", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
@@ -91,7 +90,7 @@ namespace Account_Track.Migrations
                     CustomerName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     AccountNumber = table.Column<int>(type: "int", nullable: false),
                     AccountType = table.Column<int>(type: "int", nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Balance = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false),
                     BranchId = table.Column<int>(type: "int", nullable: false),
@@ -124,7 +123,9 @@ namespace Account_Track.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: false),
                     LoginAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    LogOutAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    RefreshToken = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    RefreshTokenExpiry = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsRevoked = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -172,11 +173,11 @@ namespace Account_Track.Migrations
                     FromAccountId = table.Column<int>(type: "int", nullable: false),
                     ToAccountId = table.Column<int>(type: "int", nullable: true),
                     Type = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     IsHighValue = table.Column<bool>(type: "bit", nullable: false),
-                    BalanceBefore = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    BalanceAfterTxn = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    BalanceBefore = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    BalanceAfterTxn = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     flagReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
@@ -348,14 +349,24 @@ namespace Account_Track.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Login_RefreshToken",
+                table: "t_LoginLog",
+                column: "RefreshToken");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Login_User_Date",
                 table: "t_LoginLog",
                 columns: new[] { "UserId", "LoginAt" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Logout_User_Date",
+                name: "IX_Login_UserId",
                 table: "t_LoginLog",
-                columns: new[] { "UserId", "LogOutAt" });
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Login_UserId_RefreshToken",
+                table: "t_LoginLog",
+                columns: new[] { "UserId", "RefreshToken" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Notif",

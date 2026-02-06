@@ -28,6 +28,7 @@ namespace Account_Track.Model
 
         [Required]
         public int BranchId { get; set; }
+
         [ForeignKey(nameof(BranchId))]
         public required t_Branch Branches { get; set; }
 

@@ -20,26 +20,9 @@ namespace Account_Track.Data
         public DbSet<t_AuditLog> AuditLogs { get; set; }
         public DbSet<t_Branch> Branches { get; set; }
 
-        //Dto
-        public DbSet<CreateTnxSpResult> CreateTnxSpResult { get; set; }
-        public DbSet<TransactionListResponseDto> AccountListView { get; set; }
-        public DbSet<TransactionDetailResponseDto> TransactionDetailResponse { get; set; }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<CreateTnxSpResult>()
-            .HasNoKey()
-            .ToView(null);
-
-            modelBuilder.Entity<TransactionListResponseDto>()
-            .HasNoKey()
-            .ToView(null);
-
-            modelBuilder.Entity<TransactionDetailResponseDto>()
-            .HasNoKey()
-            .ToView(null);
 
             modelBuilder.Entity<AccountListItemDto>(eb =>
             {
@@ -61,13 +44,6 @@ namespace Account_Track.Data
 
             modelBuilder.Entity<t_Notification>().Property(p => p.Status).HasConversion<int>();
             modelBuilder.Entity<t_Notification>().Property(p => p.Type).HasConversion<int>();
-
-            // DECIMAL PRECISION
-            modelBuilder.Entity<t_Account>().Property(p => p.Balance).HasPrecision(18, 2);
-
-            modelBuilder.Entity<t_Transaction>().Property(p => p.Amount).HasPrecision(18, 2);
-            modelBuilder.Entity<t_Transaction>().Property(p => p.BalanceBefore).HasPrecision(18, 2);
-            modelBuilder.Entity<t_Transaction>().Property(p => p.BalanceAfterTxn).HasPrecision(18, 2);
 
             //Relation Rule 
             // User -> Branch

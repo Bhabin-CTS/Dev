@@ -1,20 +1,19 @@
-﻿
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Account_Track.DTOs;
 using Account_Track.DTOs.AccountDto;
-
 
 namespace Account_Track.Services.Interfaces
 {
     public interface IAccountService
     {
-        // POST vi/Create/Account
-        Task<(bool Success, string? Error, AccountListItemDto? Data)> CreateAccountAsync(AccountCreateDto dto);
+        Task<CreateAccountResponseDto> CreateAccountAsync(CreateAccountRequestDto dto, int userId);
 
-        // PUT vi/Account/{id}/edit
-        Task<(bool Success, string? Error, AccountListItemDto? Data)> UpdateAccountAsync(int accountId, AccountUpdateDto dto);
+        Task<(List<AccountListResponseDto> Items, PaginationDto Pagination)> GetAccountsAsync(
+            GetAccountsRequestDto request, int userId);
 
-        // GET vi/Account
-        Task<(bool Success, string? Error, List<AccountListItemDto>? Data)> GetAllAccountsAsync();
-        Task<(bool Success, string? Error, AccountListItemDto? Data)> GetAccountByIdAsync(int accountId);
+        Task<AccountDetailResponseDto> GetAccountByIdAsync(int accountId, int userId);
+
+        Task<AccountDetailResponseDto> UpdateAccountAsync(int accountId, UpdateAccountRequestDto dto, int userId);
     }
 }

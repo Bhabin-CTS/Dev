@@ -1,48 +1,395 @@
-﻿using Account_Track.Services.Interfaces;
-using AccountTrack.DTOs;
+﻿// File: Account_Track/Controllers/UsersController.cs
+using Account_Track.DTOs;
+using Account_Track.Dtos.UserDto;
+using Account_Track.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace Account_Track.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("v1/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly IUserService _userService;
+        private readonly IUserService _service;
+        public UsersController(IUserService service) => _service = service;
 
-        public UsersController(IUserService userService)
+        private bool TryGetUserId(out int userId)
         {
-            _userService = userService;
+            userId = 0;
+            var claim = User.FindFirst("UserId")?.Value;
+            return !string.IsNullOrWhiteSpace(claim) && int.TryParse(claim, out userId);
         }
 
-        // GET api/users/{id}
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetUser(int id)
+        // POST v1/users (Admin) - default password = hash(email)
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest dto)
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (user == null)
-                return NotFound();
+            try
+            {
+                if (!TryGetUserId(out var performedBy))
+                {
+                    return Unauthorized(new ErrorResponseDto
+                    {
+                        Success = false,
+                        ErrorCode = "UNAUTHORIZED",
+                        Message = "Missing or invalid UserId claim",
+                        TraceId = HttpContext.TraceIdentifier,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
 
-            return Ok(user);
+                var data = await _service.CreateUserAsync(dto, performedBy);
+
+                return StatusCode(201, new ApiResponseDto<UserResponse>
+                {
+                    Success = true,
+                    Data = data,
+                    Message = "User created successfully",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            // SP custom duplicate or unique constraint
+            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627 || ex.Number == 50010)
+            {
+                return StatusCode(409, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "DUPLICATE_EMAIL",
+                    Message = "email already exists",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            // SP custom: branch not present
+            catch (SqlException ex) when (ex.Number == 50003)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_REQUEST",
+                    Message = "branchId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_REQUEST",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Server failure",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
         }
 
-        // PUT api/users/{id}
+        // PUT v1/users/{id} (Admin) - update name/role/branchId and reset password to hash(email)
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserDto user)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUser([FromRoute] int id, [FromBody] UpdateUserRequest dto)
         {
-            if (user == null)
-                return BadRequest(new { error = "User data is required." });
+            try
+            {
+                if (!TryGetUserId(out var performedBy))
+                {
+                    return Unauthorized(new ErrorResponseDto
+                    {
+                        Success = false,
+                        ErrorCode = "UNAUTHORIZED",
+                        Message = "Missing or invalid UserId claim",
+                        TraceId = HttpContext.TraceIdentifier,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
 
-            if (user.UserID != 0 && user.UserID != id)
-                return BadRequest(new { error = "Route id and body userID must match." });
+                var data = await _service.UpdateUserAsync(id, dto, performedBy);
 
-            var updated = await _userService.UpdateUserAsync(id, user);
-
-            if (!updated)
-                return NotFound(new { error = $"User with ID {id} not found or update failed." });
-
-            return Ok(new { message = "User updated successfully." });
+                return Ok(new ApiResponseDto<UserResponse>
+                {
+                    Success = true,
+                    Data = data,
+                    Message = "User updated successfully",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "USER_NOT_FOUND",
+                    Message = "userId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50004) // userId not found (SP)
+            {
+                return NotFound(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "USER_NOT_FOUND",
+                    Message = "userId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50003) // branch not present (SP)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_REQUEST",
+                    Message = "branchId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+            {
+                return StatusCode(409, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "DUPLICATE_EMAIL",
+                    Message = "email already exists",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_REQUEST",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Server failure",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
         }
 
+        // PUT v1/users/{id}/status (Admin) - update status/locked + reason
+        [HttpPut("{id:int}/status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUserStatus([FromRoute] int id, [FromBody] ChangeUserStatusRequest dto)
+        {
+            try
+            {
+                if (!TryGetUserId(out var performedBy))
+                {
+                    return Unauthorized(new ErrorResponseDto
+                    {
+                        Success = false,
+                        ErrorCode = "UNAUTHORIZED",
+                        Message = "Missing or invalid UserId claim",
+                        TraceId = HttpContext.TraceIdentifier,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+
+                var data = await _service.UpdateUserStatusAsync(id, dto, performedBy);
+
+                return Ok(new ApiResponseDto<UserResponse>
+                {
+                    Success = true,
+                    Data = data,
+                    Message = "User status updated successfully",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "USER_NOT_FOUND",
+                    Message = "userId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (SqlException ex) when (ex.Number == 50004)
+            {
+                return NotFound(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "USER_NOT_FOUND",
+                    Message = "userId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_REQUEST",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Server failure",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+        }
+
+        // GET v1/users (Admin) - list with filters + paging
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsers(
+            [FromQuery] int? branchId,
+            [FromQuery] string? role,
+            [FromQuery] string? status,
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? sortBy,     // name|email|createdAt
+            [FromQuery] string? sortOrder,  // ASC|DESC
+            [FromQuery] int limit = 20,
+            [FromQuery] int offset = 0)
+        {
+            try
+            {
+                if (!TryGetUserId(out var performedBy))
+                {
+                    return Unauthorized(new ErrorResponseDto
+                    {
+                        Success = false,
+                        ErrorCode = "UNAUTHORIZED",
+                        Message = "Missing or invalid UserId claim",
+                        TraceId = HttpContext.TraceIdentifier,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+
+                var (data, pagination) = await _service.GetUsersAsync(
+                    branchId, role, status, searchTerm, sortBy, sortOrder, limit, offset, performedBy);
+
+                return Ok(new ApiResponseWithPagination<object>
+                {
+                    Success = true,
+                    Data = data,
+                    Pagination = pagination,
+                    Message = "Users retrieved successfully",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INVALID_REQUEST",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Server failure",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+        }
+
+        // GET v1/users/me (Officer/Manager/Admin)
+        [HttpGet("me")]
+        [Authorize(Roles = "Officer,Manager,Admin")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            try
+            {
+                if (!TryGetUserId(out var userId))
+                {
+                    return Unauthorized(new ErrorResponseDto
+                    {
+                        Success = false,
+                        ErrorCode = "UNAUTHORIZED",
+                        Message = "Missing or invalid UserId claim",
+                        TraceId = HttpContext.TraceIdentifier,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+
+                var data = await _service.GetUserByIdAsync(userId, userId);
+
+                return Ok(new ApiResponseDto<UserResponse>
+                {
+                    Success = true,
+                    Data = data,
+                    Message = "Current user profile retrieved",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "USER_NOT_FOUND",
+                    Message = "userId not present",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Server failure",
+                    TraceId = HttpContext.TraceIdentifier,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+        }
     }
 }

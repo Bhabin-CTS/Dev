@@ -52,10 +52,10 @@ namespace Account_Track.Model
         public bool IsHighValue { get; set; }
 
         [Required, Column(TypeName = "decimal(18,2)")]
-        public required int BalanceBefore { get; set; }
+        public required decimal BalanceBefore { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
-        public int? BalanceAfterTxn { get; set; }
+        public decimal? BalanceAfterTxn { get; set; }
 
         [MaxLength(500)]
         public string? flagReason { get; set; }

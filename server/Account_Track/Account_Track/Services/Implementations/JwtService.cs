@@ -1,4 +1,4 @@
-﻿using Account_Track.Model;
+﻿using Account_Track.DTOs.AuthDto;
 using Account_Track.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Account_Track.Services.Implementations
 {
-    public class JwtService: IJwtService
+    public class JwtService : IJwtService
     {
         private readonly IConfiguration _config;
 
@@ -17,7 +17,7 @@ namespace Account_Track.Services.Implementations
             _config = config;
         }
 
-        public string GenerateAccessToken(t_User user)
+        public string GenerateAccessToken(FindUserDto user)
         {
             var claims = new[]
             {

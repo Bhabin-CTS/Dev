@@ -1,14 +1,15 @@
 ﻿using Account_Track.Data;
 using Account_Track.DTOs.AuthDto;
+using Account_Track.Utils;
 using Account_Track.Services.Interfaces;
+using Account_Track.Utils;
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
-using System;
 using Microsoft.EntityFrameworkCore;
 
 namespace Account_Track.Services.Implementations
 {
-    public class AuthService: IAuthService
+    public class AuthService : IAuthService
     {
         private readonly ApplicationDbContext _context;
         private readonly IJwtService _jwtService;
@@ -23,21 +24,23 @@ namespace Account_Track.Services.Implementations
 
         public async Task<LoginResponseDto> Login(LoginRequestDto dto)
         {
-
-            var users = await _context.Users
-                .FromSqlRaw(
-                    "EXEC USP_GetUserByEmail @Email",
-                    new SqlParameter("@Email", dto.Email))
+            var sql = "EXEC USP_GetUserByEmail @Email"; 
+            var parameters = new[] 
+            { 
+                new SqlParameter("@Email", dto.Email) 
+            };
+            var users = await _context.Database
+                .SqlQueryRaw<FindUserDto>(sql, parameters)
                 .ToListAsync();
 
             var user = users.FirstOrDefault();
 
             if (user == null)
-                throw new Exception("User not found");
+                throw new BusinessException("USER_NOT_FOUND","User not found");
 
-            // 🔒 CHECK IF ACCOUNT LOCKED
+            //CHECK IF ACCOUNT LOCKED
             if (user.IsLocked)
-                throw new Exception("User account is locked due to multiple failed attempts");
+                throw new BusinessException("ACCOUNT_LOCKED","User account is locked due to multiple failed attempts");
 
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             {
@@ -47,14 +50,12 @@ namespace Account_Track.Services.Implementations
                     new SqlParameter("@UserId", user.UserId)
                 );
 
-                throw new Exception("Invalid credentials");
+                throw new BusinessException("INVALID_CREDENTIALS","Invalid credentials");
             }
 
             if (user.Status != UserStatus.Active)
-                throw new Exception("User is not active");
+                throw new BusinessException("USER_INACTIVE","User is not active");
 
-            if (user.IsLocked)
-                throw new Exception("User account is locked");
 
             // GENERATE TOKENS
             var accessToken = _jwtService.GenerateAccessToken(user);
@@ -91,31 +92,30 @@ namespace Account_Track.Services.Implementations
 
             var userId =
                 int.Parse(principal.FindFirst("UserId").Value);
+            
+            var sqlUser = "EXEC usp_GetUserById @UserId"; 
+            var userParams = new[] { 
+                new SqlParameter("@UserId", userId) 
+            }; 
+            var users = await _context.Database
+                .SqlQueryRaw<FindUserDto>(sqlUser, userParams)
+                .ToListAsync();
+            var user = users.FirstOrDefault();
 
-            var user = await _context.Users
-                .FromSqlRaw(
-                    "EXEC usp_GetUserById @UserId",
-                    new SqlParameter("@UserId", userId)
-                )
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
+            if (user == null)
+                throw new BusinessException("INVALID_USER","Invalid user");
 
-            if(user == null)
-                throw new Exception("Invalid user");
+            var sqlLog = "EXEC usp_GetValidLoginLog @UserId, @RefreshToken"; 
+            var logParams = new[] 
+            { 
+                new SqlParameter("@UserId", userId), 
+                new SqlParameter("@RefreshToken", dto.RefreshToken) 
+            }; 
+            var loginLogs = await _context.Database
+                .SqlQueryRaw<LoginLogDto>(sqlLog, logParams)
+                .ToListAsync();
 
-            // CORE VALIDATION
-            //if (user.AccessToken != dto.AccessToken)
-            //    throw new Exception("Access token mismatch");
-
-            // ✅ Validate refresh token (not revoked, not expired)
-            var loginLog = await _context.LoginLogs
-                .FromSqlRaw(
-                    "EXEC usp_GetValidLoginLog @UserId, @RefreshToken",
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@RefreshToken", dto.RefreshToken)
-                )
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
+            var loginLog = loginLogs.FirstOrDefault();
 
             if (loginLog == null)
             {
@@ -126,17 +126,25 @@ namespace Account_Track.Services.Implementations
                     new SqlParameter("@RefreshToken", dto.RefreshToken)
                 );
 
-                throw new Exception("Invalid or expired refresh token");
+                throw new BusinessException("INVALID_EXPIRED_TOKEN","Invalid or expired refresh token");
             }
 
             var newAccessToken = _jwtService.GenerateAccessToken(user);
-
 
             return new LoginResponseDto
             {
                 AccessToken = newAccessToken,
                 RefreshToken = dto.RefreshToken // Reuse the same refresh token until it expires
             };
+        }
+
+        public async Task<string> Logout(int userId)
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                   "EXEC usp_LogoutAllSession @UserId",
+                   new SqlParameter("@UserId", userId)
+               );
+            return "Logout Successful";
         }
     }
 }

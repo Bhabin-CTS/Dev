@@ -23,7 +23,7 @@ namespace Account_Track.Migrations
                 WHERE UserId = @UserId
             END
             ";
-            
+
             migrationBuilder.Sql(sp);
         }
 

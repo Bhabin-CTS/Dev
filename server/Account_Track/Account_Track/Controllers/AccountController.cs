@@ -1,133 +1,103 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Account_Track.Services.Interfaces;
+﻿using System;
+using System.Threading.Tasks;
 using Account_Track.DTOs;
 using Account_Track.DTOs.AccountDto;
+using Account_Track.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Account_Track.Controllers
 {
-    // Intentionally NOT using [ApiController] to return custom validation strings.
     [ApiController]
     [Route("v1/[controller]")]
     public class AccountController : ControllerBase
-    { 
-        private readonly IAccountService _accountService;
-        private readonly ILogger<AccountController> _logger;
+    {
+        private readonly IAccountService _service;
 
-        public AccountController(IAccountService accountService, ILogger<AccountController> logger)
+        public AccountController(IAccountService service)
         {
-            _accountService = accountService;
-            _logger = logger;
+            _service = service;
         }
 
-        // ---------------------------------------------------------
-        // POST vi/Create/Account
-        // Create a new account
-        // ---------------------------------------------------------
-        [HttpPost("Create")]
-        public async Task<IActionResult> Create([FromBody] AccountCreateDto dto)
+        /// <summary>
+        /// Create new account (auto-generates AccountNumber, optional initial deposit via txn SP).
+        /// </summary>
+        [HttpPost("create")]
+        [Authorize(Roles = "Officer")]
+        public async Task<IActionResult> CreateAccount([FromBody] CreateAccountRequestDto dto)
         {
-            try
+            int userId = int.Parse(User.FindFirst("UserId")!.Value);
+
+            var data = await _service.CreateAccountAsync(dto, userId);
+
+            return StatusCode(201, new ApiResponseDto<CreateAccountResponseDto>
             {
-                if (dto == null)
-                    return BadRequest("Request body is required.");
-
-                if (!ModelState.IsValid)
-                    return BadRequest(AggregateModelErrors());
-
-                var result = await _accountService.CreateAccountAsync(dto);
-
-                if (!result.Success)
-                    return BadRequest(result.Error); // plain string as per team lead
-
-                return Ok(result.Data);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in Create Account endpoint.");
-                return StatusCode(500, "Unexpected error while creating account.");
-            }
+                Success = true,
+                Data = data,
+                Message = "Account created successfully",
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
 
-        // ---------------------------------------------------------
-        // PUT vi/Account/{id}/edit
-        // Update an account with optimistic concurrency support
-        // ---------------------------------------------------------
-        [HttpPut("{id:int}/edit")]
-        public async Task<IActionResult> Edit([FromRoute] int id, [FromBody] AccountUpdateDto dto)
+        /// <summary>
+        /// Get paginated accounts (branch-restricted unless Admin). Supports filters/sorting.
+        /// </summary>
+        [HttpGet]
+        [Authorize(Roles = "Officer,Admin,Manager")]
+        public async Task<IActionResult> GetAccounts([FromQuery] GetAccountsRequestDto request)
         {
-            try
+            int userId = int.Parse(User.FindFirst("UserId")!.Value);
+
+            var (items, pagination) = await _service.GetAccountsAsync(request, userId);
+
+            return Ok(new ApiResponseWithPagination<object>
             {
-                if (dto == null)
-                    return BadRequest("Request body is required.");
-
-                if (!ModelState.IsValid)
-                    return BadRequest(AggregateModelErrors());
-
-                var result = await _accountService.UpdateAccountAsync(id, dto);
-
-                if (!result.Success)
-                    return BadRequest(result.Error);
-
-                return Ok(result.Data);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in Edit Account endpoint for AccountID {AccountID}", id);
-                return StatusCode(500, "Unexpected error while updating account.");
-            }
+                Success = true,
+                Data = items,
+                Pagination = pagination,
+                Message = "Accounts retrieved successfully",
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
 
-        // ---------------------------------------------------------
-        // GET vi/Account
-        // List all accounts
-        // ---------------------------------------------------------
-        [HttpGet("All")]
-        public async Task<IActionResult> GetAll()
-        {
-            try
-            {
-                var result = await _accountService.GetAllAccountsAsync();
-
-                if (!result.Success)
-                    return BadRequest(result.Error);
-
-                return Ok(result.Data);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in GetAll Accounts endpoint.");
-                return StatusCode(500, "Unexpected error while fetching accounts.");
-            }
-        }
-
-
+        /// <summary>
+        /// Get account detail by Id (branch-restricted unless Admin).
+        /// </summary>
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById([FromRoute] int id)
+        [Authorize(Roles = "Officer,Admin,Manager")]
+        public async Task<IActionResult> GetAccountDetail([FromRoute] int id)
         {
-            var (ok, err, data) = await _accountService.GetAccountByIdAsync(id);
-            if (!ok)
+            int userId = int.Parse(User.FindFirst("UserId")!.Value);
+
+            var data = await _service.GetAccountByIdAsync(id, userId);
+
+            return Ok(new ApiResponseDto<AccountDetailResponseDto>
             {
-                if (err != null && err.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                    return NotFound(err);
-                return BadRequest(err ?? "Failed to fetch account.");
-            }
-            return Ok(data);
+                Success = true,
+                Data = data,
+                Message = "Account details retrieved",
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
 
-
-
-        // ---------------------------------------------------------
-        // Helpers
-        // ---------------------------------------------------------
-        private string AggregateModelErrors()
+        /// <summary>
+        /// Update account (optimistic concurrency via RowVersion Base64).
+        /// </summary>
+        [HttpPut("{id:int}")]
+        [Authorize(Roles = "Officer,Admin,Manager")]
+        public async Task<IActionResult> UpdateAccount([FromRoute] int id, [FromBody] UpdateAccountRequestDto dto)
         {
-            // Build a single string of all validation errors separated by new lines
-            return string.Join("\n",
-                ModelState.Values
-                          .SelectMany(v => v.Errors)
-                          .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage)
-                                        ? "Invalid input."
-                                        : e.ErrorMessage));
+            int userId = int.Parse(User.FindFirst("UserId")!.Value);
+
+            var data = await _service.UpdateAccountAsync(id, dto, userId);
+
+            return Ok(new ApiResponseDto<AccountDetailResponseDto>
+            {
+                Success = true,
+                Data = data,
+                Message = "Account updated successfully",
+                TraceId = HttpContext.TraceIdentifier
+            });
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Account_Track.Model;
+using Account_Track.Utils.Enum;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -17,12 +18,12 @@ namespace Account_Track.Migrations
                 @Email VARCHAR(100)
             AS
             BEGIN
-                SELECT*
+                SELECT UserId, Role, Email, PasswordHash, IsLocked, Status
                 FROM t_User
                 WHERE Email = @Email
             END
             ";
-            
+
             migrationBuilder.Sql(sp);
         }
 

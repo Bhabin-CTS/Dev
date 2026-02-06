@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Account_Track.Services.Implementations
 {
     public class TransactionService : ITransactionService
-    { 
+    {
         private readonly ApplicationDbContext _context;
 
         public TransactionService(ApplicationDbContext db)
@@ -38,19 +38,20 @@ namespace Account_Track.Services.Implementations
                     "ToAccountId should be null for deposit and withdrawal transactions");
 
             // ===== CALL STORED PROCEDURE =====
-            var result = (await _context.CreateTnxSpResult
-            .FromSqlRaw(
-                "EXEC usp_CreateTransaction @p0,@p1,@p2,@p3,@p4,@p5",
-                userId,
-                dto.FromAccountId,
-                dto.ToAccountId,
-                dto.Type,
-                dto.Amount,
-                dto.Remarks
-            )
-            .AsNoTracking()
-            .ToListAsync())
-            .First();
+            var sql = "EXEC usp_CreateTransaction @UserId,@FromAccountId,@ToAccountId,@Type,@Amount,@Remarks";
+            var parameters = new[] 
+            { 
+                new SqlParameter("@UserId", userId), 
+                new SqlParameter("@FromAccountId", dto.FromAccountId), 
+                new SqlParameter("@ToAccountId", dto.ToAccountId ?? (object)DBNull.Value), 
+                new SqlParameter("@Type", dto.Type), 
+                new SqlParameter("@Amount", dto.Amount), 
+                new SqlParameter("@Remarks", dto.Remarks ?? (object)DBNull.Value) 
+            };
+            var result = (await _context.Database
+                .SqlQueryRaw<CreateTnxSpResult>(sql, parameters)
+                .ToListAsync())
+                .First();
 
             // ===== ERROR FROM DB =====
             if (result.Success == 0)
@@ -71,31 +72,23 @@ namespace Account_Track.Services.Implementations
 
         public async Task<(List<TransactionListResponseDto>, PaginationDto)> GetTransactionsAsync(GetTransactionsRequestDto request, int userId)
         {
-            var result = await _context
-                .Set<TransactionListResponseDto>()
-                .FromSqlRaw(
-                    @"EXEC usp_GetTransactions
-                    @AccountId,
-                    @Type,
-                    @Status,
-                    @IsHighValue,
-                    @FromDate,
-                    @ToDate,
-                    @Limit,
-                    @Offset,
-                    @userId",
-                    new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value),
-                    new SqlParameter("@Type", request.Type ?? (object)DBNull.Value),
-                    new SqlParameter("@Status", request.Status ?? (object)DBNull.Value),
-                    new SqlParameter("@IsHighValue", request.IsHighValue ?? (object)DBNull.Value),
-                    new SqlParameter("@FromDate", request.FromDate ?? (object)DBNull.Value),
-                    new SqlParameter("@ToDate", request.ToDate ?? (object)DBNull.Value),
-                    new SqlParameter("@Limit", request.Limit),
-                    new SqlParameter("@Offset", request.Offset),
-                    new SqlParameter("@userId", userId)
-                )
-                .AsNoTracking()
-                .ToListAsync();
+            var sql = @"EXEC usp_GetTransactions @AccountId, @Type, @Status, @IsHighValue, @FromDate, @ToDate, @Limit, @Offset, @UserId";
+            var parameters = new[]
+            {
+                new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value),
+                new SqlParameter("@Type", request.Type ?? (object)DBNull.Value),
+                new SqlParameter("@Status", request.Status ?? (object)DBNull.Value),
+                new SqlParameter("@IsHighValue", request.IsHighValue ?? (object)DBNull.Value),
+                new SqlParameter("@FromDate", request.FromDate ?? (object)DBNull.Value),
+                new SqlParameter("@ToDate", request.ToDate ?? (object)DBNull.Value),
+                new SqlParameter("@Limit", request.Limit),
+                new SqlParameter("@Offset", request.Offset),
+                new SqlParameter("@UserId", userId)
+            };
+
+            var result = await _context.Database
+                .SqlQueryRaw<TransactionListResponseDto>(sql, parameters)
+                .ToListAsync(); 
 
             int total = result.FirstOrDefault()?.TotalCount ?? 0;
 
@@ -111,15 +104,15 @@ namespace Account_Track.Services.Implementations
 
         public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId, int userId)
         {
-            var list = await _context
-            .Set<TransactionDetailResponseDto>()
-            .FromSqlRaw(
-                "EXEC usp_GetTransactionById @TransactionId, @UserId",
+            var sql = "EXEC usp_GetTransactionById @TransactionId, @UserId"; 
+            var parameters = new[] 
+            { 
                 new SqlParameter("@TransactionId", transactionId),
-                new SqlParameter("@UserId", userId)
-            )
-            .AsNoTracking()
-            .ToListAsync();
+                new SqlParameter("@UserId", userId) 
+            };
+            var list = await _context.Database
+                .SqlQueryRaw<TransactionDetailResponseDto>(sql, parameters)
+                .ToListAsync();
 
             var result = list.FirstOrDefault();
 
