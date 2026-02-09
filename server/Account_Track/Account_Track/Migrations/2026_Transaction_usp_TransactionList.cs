@@ -11,16 +11,20 @@ namespace Account_Track.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
-            CREATE PROCEDURE [dbo].[usp_GetTransactions]
+           CREATE OR ALTER PROCEDURE [dbo].[usp_GetTransactions]
                 @AccountId INT = NULL,
                 @Type VARCHAR(20) = NULL,
                 @Status VARCHAR(20) = NULL,
                 @IsHighValue BIT = NULL,
-                @FromDate DATE = NULL,
-                @ToDate DATE = NULL,
+                @CreatedFrom DATE = NULL,
+                @CreatedTo DATE = NULL,
+                @UpdatedFrom DATE = NULL,
+                @UpdatedTo DATE = NULL,
+                @SortBy NVARCHAR(50) = 'CreatedAt',
+                @SortOrder NVARCHAR(10) = 'DESC',
                 @Limit INT = 20,
                 @Offset INT = 0,
-                @userId INT
+                @UserId INT
             AS
             BEGIN
                 SET NOCOUNT ON;
@@ -31,13 +35,12 @@ namespace Account_Track.Migrations
                 DECLARE @ROLE_ADMIN INT = 3;
                 DECLARE @ROLE_MANAGER INT = 2;
                 DECLARE @ROLE_OFFICER INT = 1;
-                -- Fetch user details from DB (TRUSTED SOURCE)
+
                 SELECT 
                     @UserBranchId = BranchId,
                     @UserRole = Role
                 FROM t_User
                 WHERE UserId = @UserId;
-
 
                 SELECT
                     t.TransactionId,
@@ -46,6 +49,7 @@ namespace Account_Track.Migrations
                     t.Status,
                     t.IsHighValue,
                     t.CreatedAt,
+                    t.UpdatedAt,
                     COUNT(*) OVER() AS TotalCount
                 FROM t_Transaction t
                 WHERE
@@ -53,17 +57,32 @@ namespace Account_Track.Migrations
                     AND (@Type IS NULL OR t.Type = @Type)
                     AND (@Status IS NULL OR t.Status = @Status)
                     AND (@IsHighValue IS NULL OR t.IsHighValue = @IsHighValue)
-                    AND (@FromDate IS NULL OR t.CreatedAt >= @FromDate)
-                    AND (@ToDate IS NULL OR t.CreatedAt <= @ToDate)
-
-                    -- SECURITY FILTER
+                    AND (@CreatedFrom IS NULL OR t.CreatedAt >= @CreatedFrom)
+                    AND (@CreatedTo IS NULL OR t.CreatedAt <= @CreatedTo)
+                    AND (@UpdatedFrom IS NULL OR t.UpdatedAt >= @UpdatedFrom)
+                    AND (@UpdatedTo IS NULL OR t.UpdatedAt <= @UpdatedTo)
                     AND (
                         @UserRole = @ROLE_ADMIN
-                        OR
-                        t.BranchId = @UserBranchId
+                        OR t.BranchId = @UserBranchId
                     )
+                ORDER BY
+                    CASE WHEN @SortBy = 'CreatedAt' AND @SortOrder = 'ASC' THEN t.CreatedAt END ASC,
+                    CASE WHEN @SortBy = 'CreatedAt' AND @SortOrder = 'DESC' THEN t.CreatedAt END DESC,
 
-                ORDER BY t.CreatedAt DESC
+                    CASE WHEN @SortBy = 'UpdatedAt' AND @SortOrder = 'ASC' THEN t.UpdatedAt END ASC,
+                    CASE WHEN @SortBy = 'UpdatedAt' AND @SortOrder = 'DESC' THEN t.UpdatedAt END DESC,
+
+                    CASE WHEN @SortBy = 'Amount' AND @SortOrder = 'ASC' THEN t.Amount END ASC,
+                    CASE WHEN @SortBy = 'Amount' AND @SortOrder = 'DESC' THEN t.Amount END DESC,
+
+                    CASE WHEN @SortBy = 'Type' AND @SortOrder = 'ASC' THEN t.Type END ASC,
+                    CASE WHEN @SortBy = 'Type' AND @SortOrder = 'DESC' THEN t.Type END DESC,
+
+                    CASE WHEN @SortBy = 'Status' AND @SortOrder = 'ASC' THEN t.Status END ASC,
+                    CASE WHEN @SortBy = 'Status' AND @SortOrder = 'DESC' THEN t.Status END DESC,
+
+                    CASE WHEN @SortBy = 'IsHighValue' AND @SortOrder = 'ASC' THEN t.IsHighValue END ASC,
+                    CASE WHEN @SortBy = 'IsHighValue' AND @SortOrder = 'DESC' THEN t.IsHighValue END DESC
                 OFFSET @Offset ROWS
                 FETCH NEXT @Limit ROWS ONLY;
             END

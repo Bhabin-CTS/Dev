@@ -1,4 +1,5 @@
 ﻿// File: Account_Track/Services/Interfaces/IUserService.cs
+using Account_Track.Controllers;
 using Account_Track.Dtos.UserDto;
 using Account_Track.DTOs;
 using Account_Track.DTOs.UsersDto;
@@ -18,5 +19,6 @@ namespace Account_Track.Services.Interfaces
         Task<UserResponseDto> GetUserByIdAsync(int userId);
 
         Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId);
+        Task<bool> FirstResetAsync(FirstPasswordResetRequestDto dto);
     }
 }

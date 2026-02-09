@@ -35,6 +35,11 @@ namespace Account_Track.Services.Implementations
 
             var user = users.FirstOrDefault();
 
+            if (user.UpdatedAt == null)
+            {
+                throw new BusinessException("FIRST_LOGIN", "You are logging in for the first time. Please reset your password to continue."); 
+            }
+
             if (user == null)
                 throw new BusinessException("USER_NOT_FOUND","User not found");
 

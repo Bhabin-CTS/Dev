@@ -12,7 +12,7 @@ namespace Account_Track
 {
     public class Program
     {
-        public static void Main(string[] args) 
+        public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -35,9 +35,9 @@ namespace Account_Track
             //Added for the indentation in the Api response--For postman
             builder.Services.AddControllers()
                     .AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.WriteIndented = true;
-            });
+                    {
+                        options.JsonSerializerOptions.WriteIndented = true;
+                    });
 
             builder.Services.AddAuthentication(options =>
             {
@@ -118,7 +118,7 @@ namespace Account_Track
                             kvp => kvp.Value.Errors.Select(x => x.ErrorMessage).ToArray()
                         );
 
-                    var response = new 
+                    var response = new
                     {
                         Success = false,
                         ErrorCode = "VALIDATION_FAILED",
@@ -140,6 +140,7 @@ namespace Account_Track
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<IJwtService, JwtService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
             var app = builder.Build();

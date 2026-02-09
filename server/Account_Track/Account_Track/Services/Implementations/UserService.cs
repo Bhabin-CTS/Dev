@@ -1,6 +1,8 @@
-﻿using Account_Track.Data;
+﻿using Account_Track.Controllers;
+using Account_Track.Data;
 using Account_Track.Dtos.UserDto;
 using Account_Track.DTOs;
+using Account_Track.DTOs.AuthDto;
 using Account_Track.DTOs.UsersDto;
 using Account_Track.Services.Interfaces;
 using Account_Track.Utils;
@@ -191,6 +193,42 @@ namespace Account_Track.Services.Implementations
             };
 
             await _context.Database.ExecuteSqlRawAsync(sqlUpdate, parameters);
+
+            return true;
+        }
+
+        public async Task<bool> FirstResetAsync(FirstPasswordResetRequestDto dto)
+        {
+            var sql = "EXEC USP_GetUserByEmail @Email";
+            var parameters = new[]
+            {
+                new SqlParameter("@Email", dto.Email)
+            };
+            var users = await _context.Database
+                .SqlQueryRaw<FindUserDto>(sql, parameters)
+                .ToListAsync();
+
+            var user = users.FirstOrDefault();
+
+            if (user == null)
+                throw new BusinessException("USER_NOT_FOUND", "User not found.");
+
+            bool isValid = BCrypt.Net.BCrypt.Verify(dto.OldPassword, user.PasswordHash);
+
+            if (!isValid)
+                throw new BusinessException("OLD_PASSWORD_INVALID", "Your Old password is Wrong enter the correct one");
+
+            var newHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+
+            var sqlUpdate = "EXEC usp_ChangePassword @UserId,@PasswordHash";
+
+            var parametersup = new[]
+            {
+                new SqlParameter("@UserId", user.UserId),
+                new SqlParameter("@PasswordHash", newHash)
+            };
+
+            await _context.Database.ExecuteSqlRawAsync(sqlUpdate, parametersup);
 
             return true;
         }

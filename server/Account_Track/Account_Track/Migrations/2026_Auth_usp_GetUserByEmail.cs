@@ -18,7 +18,7 @@ namespace Account_Track.Migrations
                 @Email VARCHAR(100)
             AS
             BEGIN
-                SELECT UserId, Role, Email, PasswordHash, IsLocked, Status
+                SELECT UserId, Role, Email, PasswordHash, IsLocked, Status, UpdatedAt
                 FROM t_User
                 WHERE Email = @Email
             END

@@ -27,7 +27,11 @@ namespace Account_Track.DTOs.AccountDto
     {
         public int AccountId { get; set; }
         public int AccountNumber { get; set; }
+
+        [EnumDataType(typeof(AccountType), ErrorMessage = "Invalid AccountType")]
         public AccountType AccountType { get; set; }
+
+        [EnumDataType(typeof(AccountStatus), ErrorMessage = "Invalid AccountStatus")]
         public AccountStatus Status { get; set; }
         public decimal Balance { get; set; }
         public DateTime CreatedAt { get; set; }

@@ -20,7 +20,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Officer")]
+        [Authorize(Roles = "Officer,Admin,Manager")]
         public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionRequestDto dto)
         {
             try

@@ -10,5 +10,6 @@ namespace Account_Track.DTOs.AuthDto
         public required string PasswordHash { get; set; }
         public required bool IsLocked { get; set; } = false;
         public UserStatus Status { get; set; } = UserStatus.Active;
+        public DateTime? UpdatedAt { get; set; }
     }
 }

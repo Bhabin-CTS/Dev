@@ -39,7 +39,8 @@ namespace Account_Track.Migrations
                         DECLARE @NOTIF_UNREAD INT = 1;
                         DECLARE @NOTIF_APPROVAL_REMINDER INT = 1;
  
- 
+                        DECLARE @ACCOUNT_STATUS_ACTIVE INT = 1;
+                        DECLARE @ACCOUNT_STATUS_CLOSED INT = 2;
                         ----------------------------------------------------
                         -- DETERMINE HIGH VALUE AND STATUS
                         ----------------------------------------------------
@@ -76,6 +77,58 @@ namespace Account_Track.Migrations
                         ----------------------------------------------------
                         -- VALIDATIONS
                         ----------------------------------------------------
+                        IF @FromAccountId IS NOT NULL
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1
+                                FROM t_Account
+                                WHERE AccountId = @FromAccountId
+                            )
+                            BEGIN
+                                THROW 50010, 'From Account does not exist', 1;
+                            END
+ 
+                            IF EXISTS (
+                                SELECT 1
+                                FROM t_Account
+                                WHERE AccountId = @FromAccountId
+                                AND Status = @ACCOUNT_STATUS_CLOSED
+                            )
+                            BEGIN
+                                THROW 50011, 'From Account is closed', 1;
+                            END
+                        END
+
+                        ----------------------------------------------------
+                        -- VALIDATE TO ACCOUNT (ONLY FOR TRANSFER)
+                        ----------------------------------------------------
+                        IF @Type = 3
+                        BEGIN
+                            IF @ToAccountId IS NULL
+                            BEGIN
+                                THROW 50012, 'To Account is required for transfer', 1;
+                            END
+ 
+                            IF NOT EXISTS (
+                                SELECT 1
+                                FROM t_Account
+                                WHERE AccountId = @ToAccountId
+                            )
+                            BEGIN
+                                THROW 50013, 'To Account does not exist', 1;
+                            END
+ 
+                            IF EXISTS (
+                                SELECT 1
+                                FROM t_Account
+                                WHERE AccountId = @ToAccountId
+                                AND Status = @ACCOUNT_STATUS_CLOSED
+                            )
+                            BEGIN
+                                THROW 50014, 'To Account is closed', 1;
+                            END
+                        END
+
                         IF @BranchId IS NULL
                         BEGIN
                             THROW 50002, 'Invalid User: Branch not found', 1;

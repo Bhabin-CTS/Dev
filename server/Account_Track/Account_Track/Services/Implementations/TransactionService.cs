@@ -72,17 +72,27 @@ namespace Account_Track.Services.Implementations
 
         public async Task<(List<TransactionListResponseDto>, PaginationDto)> GetTransactionsAsync(GetTransactionsRequestDto request, int userId)
         {
-            var sql = @"EXEC usp_GetTransactions @AccountId, @Type, @Status, @IsHighValue, @FromDate, @ToDate, @Limit, @Offset, @UserId";
+            if (request.CreatedFrom > request.CreatedTo)
+                throw new BusinessException("INVALID_DATE_RANGE", "CreatedFrom cannot be greater than CreatedTo");
+
+            if (request.UpdatedFrom > request.UpdatedTo)
+                throw new BusinessException("INVALID_DATE_RANGE", "UpdatedFrom cannot be greater than UpdatedTo");
+
+            var sql = @"EXEC usp_GetTransactions @AccountId, @Type, @Status, @IsHighValue, @CreatedFrom, @CreatedTo, @UpdatedFrom, @UpdatedTo, @SortBy, @SortOrder, @Limit, @Offset, @UserId";
             var parameters = new[]
             {
-                new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value),
-                new SqlParameter("@Type", request.Type ?? (object)DBNull.Value),
-                new SqlParameter("@Status", request.Status ?? (object)DBNull.Value),
-                new SqlParameter("@IsHighValue", request.IsHighValue ?? (object)DBNull.Value),
-                new SqlParameter("@FromDate", request.FromDate ?? (object)DBNull.Value),
-                new SqlParameter("@ToDate", request.ToDate ?? (object)DBNull.Value),
-                new SqlParameter("@Limit", request.Limit),
-                new SqlParameter("@Offset", request.Offset),
+                new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value), 
+                new SqlParameter("@Type", request.Type ?? (object)DBNull.Value), 
+                new SqlParameter("@Status", request.Status ?? (object)DBNull.Value), 
+                new SqlParameter("@IsHighValue", request.IsHighValue ?? (object)DBNull.Value), 
+                new SqlParameter("@CreatedFrom", request.CreatedFrom ?? (object)DBNull.Value), 
+                new SqlParameter("@CreatedTo", request.CreatedTo ?? (object)DBNull.Value), 
+                new SqlParameter("@UpdatedFrom", request.UpdatedFrom ?? (object)DBNull.Value), 
+                new SqlParameter("@UpdatedTo", request.UpdatedTo ?? (object)DBNull.Value), 
+                new SqlParameter("@SortBy", request.SortBy ?? "CreatedAt"), 
+                new SqlParameter("@SortOrder", request.SortOrder ?? "DESC"), 
+                new SqlParameter("@Limit", request.Limit), 
+                new SqlParameter("@Offset", request.Offset), 
                 new SqlParameter("@UserId", userId)
             };
 
@@ -98,7 +108,8 @@ namespace Account_Track.Services.Implementations
                 Amount = x.Amount,
                 Status = x.Status,
                 IsHighValue = x.IsHighValue,
-                CreatedAt = x.CreatedAt
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt ?? null
             }).ToList();
 
             var pagination = new PaginationDto

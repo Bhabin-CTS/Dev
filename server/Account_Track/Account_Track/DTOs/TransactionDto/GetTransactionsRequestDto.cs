@@ -15,9 +15,12 @@ namespace Account_Track.DTOs.TransactionDto
 
         public bool? IsHighValue { get; set; }
 
-        public DateTime? FromDate { get; set; }
-
-        public DateTime? ToDate { get; set; }
+        public DateTime? CreatedFrom { get; set; }
+        public DateTime? CreatedTo { get; set; }
+        public DateTime? UpdatedFrom { get; set; }
+        public DateTime? UpdatedTo { get; set; }
+        public string? SortBy { get; set; } = "CreatedAt"; 
+        public string? SortOrder { get; set; } = "DESC";
 
         [Range(1, 100)]
         public int Limit { get; set; } = 20;

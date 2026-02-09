@@ -1,6 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-using Account_Track.DTOs;
+﻿using Account_Track.DTOs;
 using Account_Track.DTOs.AccountDto;
 using Account_Track.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;

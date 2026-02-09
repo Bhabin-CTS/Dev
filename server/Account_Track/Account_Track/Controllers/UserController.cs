@@ -290,5 +290,44 @@ namespace Account_Track.Controllers
                 });
             }
         }
+
+        // CHANGE PASSWORD
+        [HttpPost("firstPasswordReset")]
+        public async Task<IActionResult> FristReset(FirstPasswordResetRequestDto dto)
+        {
+            try
+            {
+                
+                await _service.FirstResetAsync(dto);
+
+                return Ok(new ApiResponseDto<bool>
+                {
+                    Success = true,
+                    Data = true,
+                    Message = "Password changed successfully",
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (BusinessException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = ex.ErrorCode,
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Password change failed",
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+        }
     }
 }
