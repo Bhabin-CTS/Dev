@@ -1,8 +1,10 @@
 ﻿using Account_Track.Data;
-using Account_Track.DTOs;
 using Account_Track.Dtos.BranchDto;
+using Account_Track.DTOs;
+using Account_Track.DTOs.BranchDto;
 using Account_Track.Model;
 using Account_Track.Services.Interfaces;
+using Account_Track.Utils;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,127 +12,127 @@ namespace Account_Track.Services.Implementations
 {
     public class BranchService : IBranchService
     {
-        private readonly ApplicationDbContext _db;
+        private readonly ApplicationDbContext _context;
 
-        public BranchService(ApplicationDbContext db)
+        public BranchService(ApplicationDbContext context)
         {
-            _db = db;
+            _context = context;
         }
 
-        private static string? ToIso(DateTime? dt) => dt?.ToUniversalTime().ToString("o");
-
-        private static BranchResponse Map(t_Branch b) => new()
+        public async Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId)
         {
-            BranchId = b.BranchId,
-            BranchName = b.BranchName,
-            IFSCCode = b.IFSCCode,
-            City = b.City,
-            State = b.State,
-            Country = b.Country,
-            Pincode = b.Pincode,
-            UpdatedAt = ToIso(b.UpdatedAt)
-        };
+            var sql = "EXEC usp_Branch_Create @BranchName,@IFSCCode,@City,@State,@Country,@Pincode,@UserId";
 
-        public async Task<BranchResponse> CreateBranchAsync(CreateBranchRequest dto, int userId)
-        {
-            // SP must return exactly 1 row of t_Branch
-            var list = await _db.Branches
-                .FromSqlInterpolated($@"
-                    EXEC dbo.usp_Branch_Create
-                        @BranchName={dto.BranchName},
-                        @IFSCCode={dto.IFSCCode},
-                        @City={dto.City},
-                        @State={dto.State},
-                        @Country={dto.Country},
-                        @Pincode={dto.Pincode},
-                        @PerformedByUserId={userId},
-                        @LoginId={userId}
-                ")
-                .AsNoTracking()
-                .ToListAsync();
-
-            if (list.Count != 1)
-                throw new ArgumentException("Create SP did not return a single row");
-
-            return Map(list[0]);
-        }
-
-        public async Task<BranchResponse> UpdateBranchAsync(int branchId, UpdateBranchRequest dto, int userId)
-        {
-            var list = await _db.Branches
-                .FromSqlInterpolated($@"
-                    EXEC dbo.usp_Branch_Update
-                        @BranchId={branchId},
-                        @BranchName={dto.BranchName},
-                        @IFSCCode={dto.IFSCCode},
-                        @City={dto.City},
-                        @State={dto.State},
-                        @Country={dto.Country},
-                        @Pincode={dto.Pincode},
-                        @PerformedByUserId={userId},
-                        @LoginId={userId}
-                ")
-                .AsNoTracking()
-                .ToListAsync();
-
-            if (list.Count == 0)
-                throw new KeyNotFoundException("BRANCH_NOT_FOUND"); // in case SP selected nothing
-            if (list.Count != 1)
-                throw new ArgumentException("Update SP did not return a single row");
-
-            return Map(list[0]);
-        }
-
-        public async Task<(List<BranchResponse> Data, PaginationDto Pagination)> GetBranchesAsync(
-            string? searchTerm, string? city, string? state, string? sortBy, string? sortOrder,
-            int limit, int offset, int userId)
-        {
-            if (limit <= 0 || limit > 100 || offset < 0)
-                throw new ArgumentException("Invalid pagination parameters");
-
-            var q = _db.Branches.AsNoTracking().AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            var parameters = new[]
             {
-                var s = searchTerm.Trim();
-                q = q.Where(b => b.BranchName.Contains(s) || b.IFSCCode.Contains(s) || b.City.Contains(s));
-            }
-
-            if (!string.IsNullOrWhiteSpace(city)) q = q.Where(b => b.City == city);
-            if (!string.IsNullOrWhiteSpace(state)) q = q.Where(b => b.State == state);
-
-            bool desc = string.Equals(sortOrder, "DESC", StringComparison.OrdinalIgnoreCase);
-            q = (sortBy?.ToLowerInvariant()) switch
-            {
-                "name" => desc ? q.OrderByDescending(b => b.BranchName) : q.OrderBy(b => b.BranchName),
-                "ifsc" => desc ? q.OrderByDescending(b => b.IFSCCode) : q.OrderBy(b => b.IFSCCode),
-                "city" => desc ? q.OrderByDescending(b => b.City) : q.OrderBy(b => b.City),
-                "createdat" => desc ? q.OrderByDescending(b => b.CreatedAt) : q.OrderBy(b => b.CreatedAt),
-                _ => q.OrderBy(b => b.BranchName)
+                new SqlParameter("@BranchName", dto.BranchName),
+                new SqlParameter("@IFSCCode", dto.IFSCCode),
+                new SqlParameter("@City", dto.City),
+                new SqlParameter("@State", dto.State),
+                new SqlParameter("@Country", dto.Country),
+                new SqlParameter("@Pincode", dto.Pincode),
+                new SqlParameter("@UserId", userId)
             };
 
-            var total = await q.CountAsync();
-            var items = await q.Skip(offset).Take(limit).ToListAsync();
+            var result = await _context.Database
+                .SqlQueryRaw<BranchResponseDto>(sql, parameters)
+                .ToListAsync();
 
-            var data = items.Select(Map).ToList();
+            if (!result.Any())
+                throw new BusinessException("BRANCH_CREATION_FAILED", "Failed to create branch");
 
-            var pagination = new PaginationDto
-            {
-                Total = total,
-                Limit = limit,
-                Offset = offset
-            };
-
-            return (data, pagination);
+            return result.First();
         }
 
-        public async Task<BranchResponse> GetBranchByIdAsync(int branchId, int userId)
+        public async Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId)
         {
-            var entity = await _db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.BranchId == branchId);
-            if (entity == null)
+            var sql = "EXEC usp_Branch_Update @BranchId,@BranchName,@IFSCCode,@City,@State,@Country,@Pincode,@UserId";
+
+            var parameters = new[]
+            {
+                new SqlParameter("@BranchId", branchId),
+                new SqlParameter("@BranchName", (object?)dto.BranchName ?? DBNull.Value),
+                new SqlParameter("@IFSCCode", (object?)dto.IFSCCode ?? DBNull.Value),
+                new SqlParameter("@City", (object?)dto.City ?? DBNull.Value),
+                new SqlParameter("@State", (object?)dto.State ?? DBNull.Value),
+                new SqlParameter("@Country", (object?)dto.Country ?? DBNull.Value),
+                new SqlParameter("@Pincode", (object?)dto.Pincode ?? DBNull.Value),
+                new SqlParameter("@UserId", userId)
+            };
+
+            var result = await _context.Database
+                .SqlQueryRaw<BranchResponseDto>(sql, parameters)
+                .ToListAsync();
+
+            if (!result.Any())
                 throw new KeyNotFoundException("BRANCH_NOT_FOUND");
 
-            return Map(entity);
+            return result.First();
+        }
+
+        public async Task<(List<BranchListResponseDto>, PaginationDto)> GetBranchesAsync(GetBranchesRequestDto request)
+        {
+            var sql = @"EXEC usp_GetBranches
+                @BranchId,@BranchName,@IFSCCode,@City,@State,@Country,@Pincode,
+                @SearchText,@CreatedFrom,@CreatedTo,@UpdatedFrom,@UpdatedTo,
+                @SortBy,@SortOrder,@Limit,@Offset";
+
+            var parameters = new[]
+            {
+                new SqlParameter("@BranchId", (object?)request.BranchId ?? DBNull.Value),
+                new SqlParameter("@BranchName", (object?)request.BranchName ?? DBNull.Value),
+                new SqlParameter("@IFSCCode", (object?)request.IFSCCode ?? DBNull.Value),
+                new SqlParameter("@City", (object?)request.City ?? DBNull.Value),
+                new SqlParameter("@State", (object?)request.State ?? DBNull.Value),
+                new SqlParameter("@Country", (object?)request.Country ?? DBNull.Value),
+                new SqlParameter("@Pincode", (object?)request.Pincode ?? DBNull.Value),
+                new SqlParameter("@SearchText", (object?)request.SearchText ?? DBNull.Value),
+                new SqlParameter("@CreatedFrom", (object?)request.CreatedFrom ?? DBNull.Value),
+                new SqlParameter("@CreatedTo", (object?)request.CreatedTo ?? DBNull.Value),
+                new SqlParameter("@UpdatedFrom", (object?)request.UpdatedFrom ?? DBNull.Value),
+                new SqlParameter("@UpdatedTo", (object?)request.UpdatedTo ?? DBNull.Value),
+                new SqlParameter("@SortBy", (object?)request.SortBy ?? DBNull.Value),
+                new SqlParameter("@SortOrder", (object?)request.SortOrder ?? DBNull.Value),
+                new SqlParameter("@Limit", request.Limit),
+                new SqlParameter("@Offset", request.Offset)
+            };
+
+            var spResult = await _context.Database
+                .SqlQueryRaw<BranchListSpResultDto>(sql, parameters)
+                .ToListAsync();
+
+            int total = spResult.FirstOrDefault()?.TotalCount ?? 0;
+
+            var data = spResult.Select(x => new BranchListResponseDto
+            {
+                BranchId = x.BranchId,
+                BranchName = x.BranchName,
+                IFSCCode = x.IFSCCode,
+                City = x.City,
+                State = x.State,
+                Country = x.Country,
+                Pincode = x.Pincode,
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt
+            }).ToList();
+
+            return (data, new PaginationDto { Total = total, Limit = request.Limit, Offset = request.Offset });
+        }
+
+        public async Task<BranchResponseDto> GetBranchByIdAsync(int branchId)
+        {
+            var sql = "EXEC usp_GetBranchById @BranchId";
+
+            var parameter = new SqlParameter("@BranchId", branchId);
+
+            var result = await _context.Database
+                .SqlQueryRaw<BranchResponseDto>(sql, parameter)
+                .ToListAsync();
+
+            if (!result.Any())
+                throw new KeyNotFoundException("BRANCH_NOT_FOUND");
+
+            return result.First();
         }
     }
 }

@@ -10,6 +10,5 @@ namespace Account_Track.DTOs.TransactionDto
         public TransactionStatus Status { get; set; }
         public bool IsHighValue { get; set; }
         public DateTime CreatedAt { get; set; }
-        public int TotalCount { get; set; }
     }
 }

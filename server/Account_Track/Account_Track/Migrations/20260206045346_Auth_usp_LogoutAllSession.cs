@@ -12,8 +12,7 @@ namespace Account_Track.Migrations
         {
             var sp = @"
             CREATE PROCEDURE [dbo].[usp_LogoutAllSession]
-                @UserId INT,
-                @RefreshToken VARCHAR(255)
+                @UserId INT
             AS
             BEGIN
                 UPDATE t_LoginLog

@@ -86,11 +86,20 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@UserId", userId)
             };
 
-            var result = await _context.Database
-                .SqlQueryRaw<TransactionListResponseDto>(sql, parameters)
+            var spresult = await _context.Database
+                .SqlQueryRaw<TransactionListSpResultDto>(sql, parameters)   
                 .ToListAsync(); 
 
-            int total = result.FirstOrDefault()?.TotalCount ?? 0;
+            int total = spresult.FirstOrDefault()?.TotalCount ?? 0;
+            var data = spresult.Select(x => new TransactionListResponseDto
+            {
+                TransactionId = x.TransactionId,
+                Type = x.Type,
+                Amount = x.Amount,
+                Status = x.Status,
+                IsHighValue = x.IsHighValue,
+                CreatedAt = x.CreatedAt
+            }).ToList();
 
             var pagination = new PaginationDto
             {
@@ -99,7 +108,7 @@ namespace Account_Track.Services.Implementations
                 Offset = request.Offset
             };
 
-            return (result, pagination);
+            return (data, pagination);
         }
 
         public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId, int userId)

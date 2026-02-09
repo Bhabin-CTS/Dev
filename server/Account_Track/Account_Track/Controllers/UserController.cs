@@ -1,7 +1,8 @@
-﻿// File: Account_Track/Controllers/UsersController.cs
+﻿using Account_Track.Dtos.UserDto;
 using Account_Track.DTOs;
-using Account_Track.Dtos.UserDto;
+using Account_Track.DTOs.UsersDto;
 using Account_Track.Services.Interfaces;
+using Account_Track.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -13,78 +14,48 @@ namespace Account_Track.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _service;
-        public UsersController(IUserService service) => _service = service;
 
-        private bool TryGetUserId(out int userId)
+        public UsersController(IUserService service)
         {
-            userId = 0;
-            var claim = User.FindFirst("UserId")?.Value;
-            return !string.IsNullOrWhiteSpace(claim) && int.TryParse(claim, out userId);
+            _service = service;
         }
 
-        // POST v1/users (Admin) - default password = hash(email)
+        // CREATE USER
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest dto)
+        public async Task<IActionResult> CreateUser(CreateUserRequestDto dto)
         {
             try
             {
-                if (!TryGetUserId(out var performedBy))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                var data = await _service.CreateUserAsync(dto, CurrentUserId);
 
-                var data = await _service.CreateUserAsync(dto, performedBy);
-
-                return StatusCode(201, new ApiResponseDto<UserResponse>
+                return StatusCode(201, new ApiResponseDto<UserResponseDto>
                 {
                     Success = true,
                     Data = data,
                     Message = "User created successfully",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
-            // SP custom duplicate or unique constraint
-            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627 || ex.Number == 50010)
-            {
-                return StatusCode(409, new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "DUPLICATE_EMAIL",
-                    Message = "email already exists",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            // SP custom: branch not present
-            catch (SqlException ex) when (ex.Number == 50003)
+            catch (BusinessException ex)
             {
                 return BadRequest(new ErrorResponseDto
                 {
                     Success = false,
-                    ErrorCode = "INVALID_REQUEST",
-                    Message = "branchId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "INVALID_REQUEST",
+                    ErrorCode = ex.ErrorCode,
                     Message = ex.Message,
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (SqlException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "DATABASE_ERROR",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
             catch
@@ -94,95 +65,47 @@ namespace Account_Track.Controllers
                     Success = false,
                     ErrorCode = "INTERNAL_SERVER_ERROR",
                     Message = "Server failure",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
         }
 
-        // PUT v1/users/{id} (Admin) - update name/role/branchId and reset password to hash(email)
+        // UPDATE USER
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateUser([FromRoute] int id, [FromBody] UpdateUserRequest dto)
+        public async Task<IActionResult> UpdateUser(int id, UpdateUserRequestDto dto)
         {
             try
             {
-                if (!TryGetUserId(out var performedBy))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                var data = await _service.UpdateUserAsync(id, dto, CurrentUserId);
 
-                var data = await _service.UpdateUserAsync(id, dto, performedBy);
-
-                return Ok(new ApiResponseDto<UserResponse>
+                return Ok(new ApiResponseDto<UserResponseDto>
                 {
                     Success = true,
                     Data = data,
                     Message = "User updated successfully",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
-            catch (KeyNotFoundException)
-            {
-                return NotFound(new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "USER_NOT_FOUND",
-                    Message = "userId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (SqlException ex) when (ex.Number == 50004) // userId not found (SP)
-            {
-                return NotFound(new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "USER_NOT_FOUND",
-                    Message = "userId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (SqlException ex) when (ex.Number == 50003) // branch not present (SP)
+            catch (BusinessException ex)
             {
                 return BadRequest(new ErrorResponseDto
                 {
                     Success = false,
-                    ErrorCode = "INVALID_REQUEST",
-                    Message = "branchId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
-            {
-                return StatusCode(409, new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "DUPLICATE_EMAIL",
-                    Message = "email already exists",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "INVALID_REQUEST",
+                    ErrorCode = ex.ErrorCode,
                     Message = ex.Message,
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (SqlException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "DATABASE_ERROR",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
             catch
@@ -192,73 +115,47 @@ namespace Account_Track.Controllers
                     Success = false,
                     ErrorCode = "INTERNAL_SERVER_ERROR",
                     Message = "Server failure",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
         }
 
-        // PUT v1/users/{id}/status (Admin) - update status/locked + reason
+        // UPDATE USER STATUS
         [HttpPut("{id:int}/status")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateUserStatus([FromRoute] int id, [FromBody] ChangeUserStatusRequest dto)
+        public async Task<IActionResult> UpdateUserStatus(int id, ChangeUserStatusRequestDto dto)
         {
             try
             {
-                if (!TryGetUserId(out var performedBy))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                var data = await _service.UpdateUserStatusAsync(id, dto, CurrentUserId);
 
-                var data = await _service.UpdateUserStatusAsync(id, dto, performedBy);
-
-                return Ok(new ApiResponseDto<UserResponse>
+                return Ok(new ApiResponseDto<UserResponseDto>
                 {
                     Success = true,
                     Data = data,
                     Message = "User status updated successfully",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
-            catch (KeyNotFoundException)
-            {
-                return NotFound(new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "USER_NOT_FOUND",
-                    Message = "userId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (SqlException ex) when (ex.Number == 50004)
-            {
-                return NotFound(new ErrorResponseDto
-                {
-                    Success = false,
-                    ErrorCode = "USER_NOT_FOUND",
-                    Message = "userId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (ArgumentException ex)
+            catch (BusinessException ex)
             {
                 return BadRequest(new ErrorResponseDto
                 {
                     Success = false,
-                    ErrorCode = "INVALID_REQUEST",
+                    ErrorCode = ex.ErrorCode,
                     Message = ex.Message,
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (SqlException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "DATABASE_ERROR",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
             catch
@@ -268,61 +165,38 @@ namespace Account_Track.Controllers
                     Success = false,
                     ErrorCode = "INTERNAL_SERVER_ERROR",
                     Message = "Server failure",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
         }
 
-        // GET v1/users (Admin) - list with filters + paging
+        // GET USERS LIST
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetUsers(
-            [FromQuery] int? branchId,
-            [FromQuery] string? role,
-            [FromQuery] string? status,
-            [FromQuery] string? searchTerm,
-            [FromQuery] string? sortBy,     // name|email|createdAt
-            [FromQuery] string? sortOrder,  // ASC|DESC
-            [FromQuery] int limit = 20,
-            [FromQuery] int offset = 0)
+        public async Task<IActionResult> GetUsers([FromQuery] GetUsersRequestDto dto)
         {
             try
             {
-                if (!TryGetUserId(out var performedBy))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                var (data, pagination) = await _service.GetUsersAsync(dto, CurrentUserId);
 
-                var (data, pagination) = await _service.GetUsersAsync(
-                    branchId, role, status, searchTerm, sortBy, sortOrder, limit, offset, performedBy);
-
-                return Ok(new ApiResponseWithPagination<object>
+                return Ok(new ApiResponseWithPagination<List<UserResponseDto>>
                 {
                     Success = true,
                     Data = data,
                     Pagination = pagination,
                     Message = "Users retrieved successfully",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
-            catch (ArgumentException ex)
+            catch (BusinessException ex)
             {
                 return BadRequest(new ErrorResponseDto
                 {
                     Success = false,
-                    ErrorCode = "INVALID_REQUEST",
+                    ErrorCode = ex.ErrorCode,
                     Message = ex.Message,
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
             catch
@@ -332,51 +206,37 @@ namespace Account_Track.Controllers
                     Success = false,
                     ErrorCode = "INTERNAL_SERVER_ERROR",
                     Message = "Server failure",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
         }
 
-        // GET v1/users/me (Officer/Manager/Admin)
+        // GET CURRENT USER PROFILE
         [HttpGet("me")]
-        [Authorize(Roles = "Officer,Manager,Admin")]
+        [Authorize]
         public async Task<IActionResult> GetCurrentUser()
         {
             try
             {
-                if (!TryGetUserId(out var userId))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                var data = await _service.GetUserByIdAsync(CurrentUserId);
 
-                var data = await _service.GetUserByIdAsync(userId, userId);
-
-                return Ok(new ApiResponseDto<UserResponse>
+                return Ok(new ApiResponseDto<UserResponseDto>
                 {
                     Success = true,
                     Data = data,
-                    Message = "Current user profile retrieved",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    Message = "Profile retrieved",
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
-            catch (KeyNotFoundException)
+            catch (BusinessException ex)
             {
                 return NotFound(new ErrorResponseDto
                 {
                     Success = false,
-                    ErrorCode = "USER_NOT_FOUND",
-                    Message = "userId not present",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    ErrorCode = ex.ErrorCode,
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
             catch
@@ -386,8 +246,47 @@ namespace Account_Track.Controllers
                     Success = false,
                     ErrorCode = "INTERNAL_SERVER_ERROR",
                     Message = "Server failure",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+        }
+
+        // CHANGE PASSWORD
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequestDto dto)
+        {
+            try
+            {
+                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                await _service.ChangePasswordAsync(dto, CurrentUserId);
+
+                return Ok(new ApiResponseDto<bool>
+                {
+                    Success = true,
+                    Data = true,
+                    Message = "Password changed successfully",
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (BusinessException ex)
+            {
+                return BadRequest(new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = ex.ErrorCode,
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new ErrorResponseDto
+                {
+                    Success = false,
+                    ErrorCode = "INTERNAL_SERVER_ERROR",
+                    Message = "Password change failed",
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
         }

@@ -1,17 +1,17 @@
-﻿using Account_Track.DTOs;
-using Account_Track.Dtos.BranchDto;
+﻿using Account_Track.Dtos.BranchDto;
+using Account_Track.DTOs;
+using Account_Track.DTOs.BranchDto;
 
 namespace Account_Track.Services.Interfaces
 {
     public interface IBranchService
     {
-        Task<BranchResponse> CreateBranchAsync(CreateBranchRequest dto, int userId);
-        Task<BranchResponse> UpdateBranchAsync(int branchId, UpdateBranchRequest dto, int userId);
+        Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId);
 
-        Task<(List<BranchResponse> Data, PaginationDto Pagination)> GetBranchesAsync(
-            string? searchTerm, string? city, string? state, string? sortBy, string? sortOrder,
-            int limit, int offset, int userId);
+        Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId);
 
-        Task<BranchResponse> GetBranchByIdAsync(int branchId, int userId);
+        Task<(List<BranchListResponseDto>, PaginationDto)> GetBranchesAsync(GetBranchesRequestDto request);
+
+        Task<BranchResponseDto> GetBranchByIdAsync(int branchId);
     }
 }

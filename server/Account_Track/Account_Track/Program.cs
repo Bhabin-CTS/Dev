@@ -2,8 +2,8 @@ using Account_Track.Data;
 using Account_Track.DTOs;
 using Account_Track.Services.Implementations;
 using Account_Track.Services.Interfaces;
-using AccountTrack.Services.Implementations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -12,7 +12,7 @@ namespace Account_Track
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main(string[] args) 
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -107,6 +107,31 @@ namespace Account_Track
                     }
                 };
             });
+            builder.Services.Configure<ApiBehaviorOptions>(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    var errors = context.ModelState
+                        .Where(e => e.Value.Errors.Count > 0)
+                        .ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => kvp.Value.Errors.Select(x => x.ErrorMessage).ToArray()
+                        );
+
+                    var response = new 
+                    {
+                        Success = false,
+                        ErrorCode = "VALIDATION_FAILED",
+                        Message = "One or more validation errors occurred",
+                        Errors = errors,
+                        Timestamp = DateTime.UtcNow,
+                        TraceId = context.HttpContext.TraceIdentifier
+                    };
+
+                    return new BadRequestObjectResult(response);
+                };
+            });
+
             // Register services or dependency injection 
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IBranchService, BranchService>();

@@ -1,5 +1,6 @@
-﻿using Account_Track.DTOs;
-using Account_Track.Dtos.BranchDto;
+﻿using Account_Track.Dtos.BranchDto;
+using Account_Track.DTOs;
+using Account_Track.DTOs.BranchDto;
 using Account_Track.Services.Interfaces;
 using Account_Track.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ using Microsoft.Data.SqlClient;
 namespace Account_Track.Controllers
 {
     [ApiController]
-    [Route("v1/[controller]")]
+    [Route("v1/[controller]")] 
     public class BranchesController : ControllerBase
     {
         private readonly IBranchService _service;
@@ -19,35 +20,18 @@ namespace Account_Track.Controllers
             _service = service;
         }
 
-        private bool TryGetUserId(out int userId)
-        {
-            userId = 0;
-            var claim = User.FindFirst("UserId")?.Value;
-            return !string.IsNullOrWhiteSpace(claim) && int.TryParse(claim, out userId);
-        }
-
         // POST v1/branches (Admin)
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> CreateBranch([FromBody] CreateBranchRequest dto)
+        public async Task<IActionResult> CreateBranch([FromBody] CreateBranchRequestDto dto)
         {
             try
             {
-                if (!TryGetUserId(out var userId))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int userId = int.Parse(User.FindFirst("UserId").Value);
 
                 var data = await _service.CreateBranchAsync(dto, userId);
 
-                return StatusCode(201, new ApiResponseDto<BranchResponse>
+                return StatusCode(201, new ApiResponseDto<BranchResponseDto>
                 {
                     Success = true,
                     Data = data,
@@ -67,27 +51,22 @@ namespace Account_Track.Controllers
                     Timestamp = DateTime.UtcNow
                 });
             }
-            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627 || ex.Number == 50010)
+            catch (SqlException)
             {
-                // Unique key violations or custom duplicate from SP
-                return StatusCode(409, new ErrorResponseDto
+                return Conflict(new ErrorResponseDto
                 {
-                    Success = false,
                     ErrorCode = "DUPLICATE_IFSC",
                     Message = "IFSCCode already exists",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
-            catch
+            catch (Exception)
             {
                 return StatusCode(500, new ErrorResponseDto
                 {
-                    Success = false,
                     ErrorCode = "INTERNAL_SERVER_ERROR",
                     Message = "Server failure",
-                    TraceId = HttpContext.TraceIdentifier,
-                    Timestamp = DateTime.UtcNow
+                    TraceId = HttpContext.TraceIdentifier
                 });
             }
         }
@@ -95,25 +74,15 @@ namespace Account_Track.Controllers
         // PUT v1/branches/{id} (Admin)
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateBranch([FromRoute] int id, [FromBody] UpdateBranchRequest dto)
+        public async Task<IActionResult> UpdateBranch([FromRoute] int id, [FromBody] UpdateBranchRequestDto dto)
         {
             try
             {
-                if (!TryGetUserId(out var userId))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
+                int userId = int.Parse(User.FindFirst("UserId").Value);
 
                 var data = await _service.UpdateBranchAsync(id, dto, userId);
 
-                return Ok(new ApiResponseDto<BranchResponse>
+                return Ok(new ApiResponseDto<BranchResponseDto>
                 {
                     Success = true,
                     Data = data,
@@ -171,31 +140,11 @@ namespace Account_Track.Controllers
         // GET v1/branches (Officer/Manager/Admin)
         [HttpGet]
         [Authorize(Roles = "Officer,Admin,Manager")]
-        public async Task<IActionResult> GetBranches(
-            [FromQuery] string? searchTerm,
-            [FromQuery] string? city,
-            [FromQuery] string? state,
-            [FromQuery] string? sortBy,     // name|ifsc|city|createdAt
-            [FromQuery] string? sortOrder,  // ASC|DESC
-            [FromQuery] int limit = 20,
-            [FromQuery] int offset = 0)
+        public async Task<IActionResult> GetBranches([FromQuery] GetBranchesRequestDto request)
         {
             try
             {
-                if (!TryGetUserId(out var userId))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
-
-                var (data, pagination) = await _service.GetBranchesAsync(
-                    searchTerm, city, state, sortBy, sortOrder, limit, offset, userId);
+                var (data, pagination) = await _service.GetBranchesAsync(request);
 
                 return Ok(new ApiResponseWithPagination<object>
                 {
@@ -238,21 +187,10 @@ namespace Account_Track.Controllers
         {
             try
             {
-                if (!TryGetUserId(out var userId))
-                {
-                    return Unauthorized(new ErrorResponseDto
-                    {
-                        Success = false,
-                        ErrorCode = "UNAUTHORIZED",
-                        Message = "Missing or invalid UserId claim",
-                        TraceId = HttpContext.TraceIdentifier,
-                        Timestamp = DateTime.UtcNow
-                    });
-                }
 
-                var data = await _service.GetBranchByIdAsync(id, userId);
+                var data = await _service.GetBranchByIdAsync(id);
 
-                return Ok(new ApiResponseDto<BranchResponse>
+                return Ok(new ApiResponseDto<BranchResponseDto>
                 {
                     Success = true,
                     Data = data,

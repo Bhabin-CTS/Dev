@@ -1,20 +1,22 @@
 ﻿// File: Account_Track/Services/Interfaces/IUserService.cs
-using Account_Track.DTOs;
 using Account_Track.Dtos.UserDto;
+using Account_Track.DTOs;
+using Account_Track.DTOs.UsersDto;
 
 namespace Account_Track.Services.Interfaces
 {
     public interface IUserService
     {
-        Task<UserResponse> CreateUserAsync(CreateUserRequest dto, int userId);
-        Task<UserResponse> UpdateUserAsync(int targetUserId, UpdateUserRequest dto, int userId);
-        Task<UserResponse> UpdateUserStatusAsync(int targetUserId, ChangeUserStatusRequest dto, int userId);
+        Task<UserResponseDto> CreateUserAsync(CreateUserRequestDto dto, int userId);
 
-        Task<(List<UserResponse> Data, PaginationDto Pagination)> GetUsersAsync(
-            int? branchId, string? role, string? status, string? searchTerm,
-            string? sortBy, string? sortOrder, int limit, int offset, int userId);
+        Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserRequestDto dto, int userId);
 
-        Task<UserResponse> GetUserByIdAsync(int targetUserId, int userId);
-        Task<UserResponse?> GetUserByEmailAsync(string email, int userId);
+        Task<UserResponseDto> UpdateUserStatusAsync(int id, ChangeUserStatusRequestDto dto, int userId);
+
+        Task<(List<UserResponseDto>, PaginationDto)> GetUsersAsync(GetUsersRequestDto dto, int userId);
+
+        Task<UserResponseDto> GetUserByIdAsync(int userId);
+
+        Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId);
     }
 }
