@@ -17,17 +17,23 @@ namespace Account_Track.Migrations
             @Role INT,
             @BranchId INT,
             @PasswordHash NVARCHAR(200),
-            @UserId INT
+            @UserId INT   -- user performing the action
         AS
         BEGIN
             SET NOCOUNT ON;
 
+            -------------------------------------------------------
+            -- VALIDATIONS
+            -------------------------------------------------------
             IF EXISTS (SELECT 1 FROM t_User WHERE Email = @Email)
                 THROW 50010, 'EMAIL_ALREADY_EXISTS', 1;
 
             IF NOT EXISTS (SELECT 1 FROM t_Branch WHERE BranchId = @BranchId)
                 THROW 50003, 'BRANCH_NOT_FOUND', 1;
 
+            -------------------------------------------------------
+            -- CREATE USER
+            -------------------------------------------------------
             INSERT INTO t_User
             (
                 Name,
@@ -53,6 +59,95 @@ namespace Account_Track.Migrations
                 GETUTCDATE()
             );
 
+            DECLARE @NewUserId INT = SCOPE_IDENTITY();
+
+            -------------------------------------------------------
+            -- NOTIFICATION LOGIC
+            -------------------------------------------------------
+
+            DECLARE @NOTIF_UNREAD INT = 1;
+            DECLARE @NOTIF_SYSTEM INT = 3;
+
+            -------------------------------------------------------
+            -- 1. WELCOME NOTIFICATION TO NEW USER
+            -------------------------------------------------------
+            INSERT INTO t_Notification
+            (
+                UserId,
+                Message,
+                Status,
+                Type,
+                CreatedDate
+            )
+            VALUES
+            (
+                @NewUserId,
+                CONCAT('Welcome ', @Name, '! Your account has been successfully created.'),
+                @NOTIF_UNREAD,
+                @NOTIF_SYSTEM,
+                GETUTCDATE()
+            );
+
+            -------------------------------------------------------
+            -- 2. IF NEW USER IS OFFICER → NOTIFY MANAGER
+            -------------------------------------------------------
+            IF @Role = 1   -- Officer
+            BEGIN
+                DECLARE @ManagerId INT;
+
+                SELECT TOP 1 @ManagerId = UserId
+                FROM t_User
+                WHERE BranchId = @BranchId
+                  AND Role = 2;   -- Manager
+
+                IF @ManagerId IS NOT NULL
+                BEGIN
+                    INSERT INTO t_Notification
+                    (
+                        UserId,
+                        Message,
+                        Status,
+                        Type,
+                        CreatedDate
+                    )
+                    VALUES
+                    (
+                        @ManagerId,
+                        CONCAT('New officer ', @Name, ' has joined your branch.'),
+                        @NOTIF_UNREAD,
+                        @NOTIF_SYSTEM,
+                        GETUTCDATE()
+                    );
+                END
+            END
+
+            -------------------------------------------------------
+            -- 3. IF NEW USER IS MANAGER → NOTIFY ALL BRANCH USERS
+            -------------------------------------------------------
+            IF @Role = 2   -- Manager
+            BEGIN
+                INSERT INTO t_Notification
+                (
+                    UserId,
+                    Message,
+                    Status,
+                    Type,
+                    CreatedDate
+                )
+                SELECT
+                    UserId,
+                    CONCAT('New branch manager ', @Name, ' has been assigned to your branch.'),
+                    @NOTIF_UNREAD,
+                    @NOTIF_SYSTEM,
+                    GETUTCDATE()
+                FROM t_User
+                WHERE BranchId = @BranchId
+                  AND UserId <> @NewUserId;
+            END
+
+            -------------------------------------------------------
+            -- RETURN CREATED USER
+            -------------------------------------------------------
             SELECT 
                 UserId,
                 Name,
@@ -64,8 +159,10 @@ namespace Account_Track.Migrations
                 CreatedAt,
                 UpdatedAt
             FROM t_User
-            WHERE UserId = SCOPE_IDENTITY();
-        END";
+            WHERE UserId = @NewUserId;
+
+        END
+        ";
             migrationBuilder.Sql(sp);
         }
 
