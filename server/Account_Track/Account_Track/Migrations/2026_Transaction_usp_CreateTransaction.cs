@@ -11,7 +11,7 @@ namespace Account_Track.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             string sp_CreateTransaction = @"
-                CREATE PROCEDURE [dbo].[usp_CreateTransaction]
+                CREATE OR ALTER PROCEDURE [dbo].[usp_CreateTransaction]
                 (
                     @CreatedByUserId INT,
                     @FromAccountId INT = NULL,
@@ -289,7 +289,7 @@ namespace Account_Track.Migrations
  
                         END
  
- 
+  
                         ----------------------------------------------------
                         -- RETURN RESULT TO API
                         ----------------------------------------------------

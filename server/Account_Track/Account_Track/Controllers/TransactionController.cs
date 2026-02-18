@@ -25,7 +25,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int userId = int.Parse(User.FindFirst("UserId").Value);
+                int userId = int.Parse(User.FindFirst("UserId")!.Value);
 
                 var data = await _service.CreateTransactionAsync(dto, userId);
 
@@ -77,7 +77,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int userId = int.Parse(User.FindFirst("UserId").Value);
+                int userId = int.Parse(User.FindFirst("UserId")!.Value);
 
                 var (data, pagination) =
                     await _service.GetTransactionsAsync(request, userId);
@@ -120,7 +120,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int userId = int.Parse(User.FindFirst("UserId").Value);
+                int userId = int.Parse(User.FindFirst("UserId")!.Value);
 
                 var data = await _service.GetTransactionByIdAsync(id, userId);
 

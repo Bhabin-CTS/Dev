@@ -112,7 +112,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int userId = int.Parse(User.FindFirst("UserId").Value);
+                int userId = int.Parse(User.FindFirst("UserId")!.Value);
 
                 var result = await _authService.Logout(userId);
 

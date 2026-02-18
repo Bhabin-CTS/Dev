@@ -2,7 +2,6 @@
 using Account_Track.Dtos.BranchDto;
 using Account_Track.DTOs;
 using Account_Track.DTOs.BranchDto;
-using Account_Track.Model;
 using Account_Track.Services.Interfaces;
 using Account_Track.Utils;
 using Microsoft.Data.SqlClient;

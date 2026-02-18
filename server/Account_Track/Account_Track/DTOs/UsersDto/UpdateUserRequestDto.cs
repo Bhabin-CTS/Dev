@@ -1,5 +1,4 @@
-﻿// Dtos/UserDto/UpdateUserRequest.cs
-using Account_Track.Utils.Enum;
+﻿using Account_Track.Utils.Enum;
 using System.ComponentModel.DataAnnotations;
 
 namespace Account_Track.Dtos.UserDto

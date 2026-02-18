@@ -1,8 +1,4 @@
-﻿using Account_Track.Model;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace Account_Track.DTOs.AuthDto
+﻿namespace Account_Track.DTOs.AuthDto
 {
     public class LoginLogDto
     {

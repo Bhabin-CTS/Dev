@@ -27,7 +27,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int userId = int.Parse(User.FindFirst("UserId").Value);
+                int userId = int.Parse(User.FindFirst("UserId")!.Value);
 
                 var data = await _service.CreateBranchAsync(dto, userId);
 
@@ -78,7 +78,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int userId = int.Parse(User.FindFirst("UserId").Value);
+                int userId = int.Parse(User.FindFirst("UserId")!.Value);
 
                 var data = await _service.UpdateBranchAsync(id, dto, userId);
 

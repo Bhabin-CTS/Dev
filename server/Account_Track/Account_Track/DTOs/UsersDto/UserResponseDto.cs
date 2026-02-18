@@ -1,5 +1,5 @@
-﻿// Dtos/UserDto/UserResponse.cs
-using Account_Track.Utils.Enum;
+﻿using Account_Track.Utils.Enum;
+using System.ComponentModel.DataAnnotations;
 
 namespace Account_Track.Dtos.UserDto
 {
@@ -10,11 +10,11 @@ namespace Account_Track.Dtos.UserDto
         public string Name { get; set; }
 
         public string Email { get; set; }
-
+        [EnumDataType(typeof(UserRole), ErrorMessage = "Invalid UserRole")]
         public UserRole Role { get; set; }
 
         public int BranchId { get; set; }
-
+        [EnumDataType(typeof(UserStatus), ErrorMessage = "Invalid UserStatus")]
         public UserStatus Status { get; set; }
 
         public bool IsLocked { get; set; }

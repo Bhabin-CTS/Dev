@@ -27,7 +27,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
                 var data = await _service.CreateUserAsync(dto, CurrentUserId);
 
                 return StatusCode(201, new ApiResponseDto<UserResponseDto>
@@ -77,7 +77,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
                 var data = await _service.UpdateUserAsync(id, dto, CurrentUserId);
 
                 return Ok(new ApiResponseDto<UserResponseDto>
@@ -127,7 +127,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
                 var data = await _service.UpdateUserStatusAsync(id, dto, CurrentUserId);
 
                 return Ok(new ApiResponseDto<UserResponseDto>
@@ -177,7 +177,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
                 var (data, pagination) = await _service.GetUsersAsync(dto, CurrentUserId);
 
                 return Ok(new ApiResponseWithPagination<List<UserResponseDto>>
@@ -218,7 +218,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
                 var data = await _service.GetUserByIdAsync(CurrentUserId);
 
                 return Ok(new ApiResponseDto<UserResponseDto>
@@ -258,7 +258,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                int CurrentUserId = int.Parse(User.FindFirst("UserId").Value);
+                int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
                 await _service.ChangePasswordAsync(dto, CurrentUserId);
 
                 return Ok(new ApiResponseDto<bool>

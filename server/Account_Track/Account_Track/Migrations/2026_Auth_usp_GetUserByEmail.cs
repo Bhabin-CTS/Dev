@@ -14,7 +14,7 @@ namespace Account_Track.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
-            CREATE PROCEDURE [dbo].[usp_GetUserByEmail] 
+            CREATE OR ALTER PROCEDURE [dbo].[usp_GetUserByEmail] 
                 @Email VARCHAR(100)
             AS
             BEGIN

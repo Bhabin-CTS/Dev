@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using Account_Track.DTOs;
+﻿using Account_Track.DTOs;
 using Account_Track.DTOs.AccountDto;
 
 namespace Account_Track.Services.Interfaces

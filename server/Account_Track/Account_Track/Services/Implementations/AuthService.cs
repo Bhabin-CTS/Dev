@@ -1,11 +1,11 @@
 ﻿using Account_Track.Data;
 using Account_Track.DTOs.AuthDto;
-using Account_Track.Utils;
 using Account_Track.Services.Interfaces;
 using Account_Track.Utils;
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Account_Track.Services.Implementations
 {
@@ -35,13 +35,13 @@ namespace Account_Track.Services.Implementations
 
             var user = users.FirstOrDefault();
 
-            if (user.UpdatedAt == null)
-            {
-                throw new BusinessException("FIRST_LOGIN", "You are logging in for the first time. Please reset your password to continue."); 
-            }
-
             if (user == null)
                 throw new BusinessException("USER_NOT_FOUND","User not found");
+
+            if (user.UpdatedAt == null)
+            {
+                throw new BusinessException("FIRST_LOGIN", "You are logging in for the first time. Please reset your password to continue.");
+            }
 
             //CHECK IF ACCOUNT LOCKED
             if (user.IsLocked)
@@ -95,18 +95,28 @@ namespace Account_Track.Services.Implementations
             var principal =
                 _jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
 
-            var userId =
-                int.Parse(principal.FindFirst("UserId").Value);
-            
-            var sqlUser = "EXEC usp_GetUserById @UserId"; 
-            var userParams = new[] { 
-                new SqlParameter("@UserId", userId) 
-            }; 
+            //var userId =
+            //    int.Parse(principal.FindFirst("UserId").Value);
+
+            //var sqlUser = "EXEC usp_GetUserById @UserId"; 
+            //var userParams = new[] { 
+            //    new SqlParameter("@UserId", userId) 
+            //}; 
+
+            var Email = principal.FindFirst(ClaimTypes.Email)?.Value;
+
+            var sqlUser = "EXEC USP_GetUserByEmail @Email";
+            var userParams = new[]
+            {
+                new SqlParameter("@Email", Email)
+            };
             var users = await _context.Database
                 .SqlQueryRaw<FindUserDto>(sqlUser, userParams)
                 .ToListAsync();
-            var user = users.FirstOrDefault();
 
+            var user = users.FirstOrDefault();
+            var userId = user.UserId;
+           
             if (user == null)
                 throw new BusinessException("INVALID_USER","Invalid user");
 

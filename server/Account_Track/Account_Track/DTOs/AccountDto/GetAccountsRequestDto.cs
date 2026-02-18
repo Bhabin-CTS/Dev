@@ -1,5 +1,4 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Account_Track.Utils.Enum;
 
 namespace Account_Track.DTOs.AccountDto

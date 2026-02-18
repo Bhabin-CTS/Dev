@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Account_Track.DTOs.AccountDto
+﻿namespace Account_Track.DTOs.AccountDto
 {
     public class AccountListItemDto
     {

@@ -11,7 +11,7 @@ namespace Account_Track.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-CREATE PROCEDURE dbo.usp_GetAccounts
+CREATE OR ALTER PROCEDURE dbo.usp_GetAccounts
     @AccountNumber INT = NULL,
     @AccountType INT = NULL,
     @Status INT = NULL,

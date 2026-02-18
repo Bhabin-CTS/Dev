@@ -11,7 +11,7 @@ namespace Account_Track.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
-            CREATE PROCEDURE [dbo].[usp_GetTransactionById]
+            CREATE OR ALTER PROCEDURE [dbo].[usp_GetTransactionById]
                 @TransactionId INT,
                 @UserId INT
             AS

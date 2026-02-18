@@ -1,13 +1,14 @@
 ﻿using Account_Track.Utils.Enum;
+using System.ComponentModel.DataAnnotations;
 
 namespace Account_Track.DTOs.UsersDto
 {
     public class GetUsersRequestDto
     {
         public int? BranchId { get; set; }
-
+        [EnumDataType(typeof(UserRole), ErrorMessage = "Invalid UserRole")]
         public UserRole? Role { get; set; }
-
+        [EnumDataType(typeof(UserStatus), ErrorMessage = "Invalid UserStatus")]
         public UserStatus? Status { get; set; }
 
         public bool? IsLocked { get; set; }

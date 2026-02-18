@@ -1,5 +1,4 @@
-﻿using Account_Track.Controllers;
-using Account_Track.Data;
+﻿using Account_Track.Data;
 using Account_Track.Dtos.UserDto;
 using Account_Track.DTOs;
 using Account_Track.DTOs.AuthDto;

@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Account_Track.Data;
+﻿using Account_Track.Data;
 using Account_Track.DTOs;
 using Account_Track.DTOs.AccountDto;
 using Account_Track.Services.Interfaces;
-using Account_Track.Utils;
+using Account_Track.Utils; // BusinessException
+using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +23,6 @@ namespace Account_Track.Services.Implementations
         // ------------------------------------------------
         public async Task<CreateAccountResponseDto> CreateAccountAsync(CreateAccountRequestDto dto, int userId)
         {
-            // Basic guards (ModelState handles most validation in controller)
             if (string.IsNullOrWhiteSpace(dto.CustomerName))
                 throw new BusinessException("INVALID_REQUEST", "customerName is required");
 
@@ -52,14 +48,14 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("DB_ERROR", "Account creation failed: empty result from database");
 
             if (result.Success == 0)
-                throw new BusinessException(result.ErrorCode ?? "DB_ERROR", result.Message);
+                throw new BusinessException(result.ErrorCode ?? "DB_ERROR", result.Message ?? "Account creation failed");
 
             return new CreateAccountResponseDto
             {
                 AccountId = result.AccountId ?? 0,
                 AccountNumber = result.AccountNumber ?? 0,
-                AccountType = (Account_Track.Utils.Enum.AccountType)(result.AccountType ?? 0),
-                Status = (Account_Track.Utils.Enum.AccountStatus)(result.Status ?? 0),
+                AccountType = (AccountType)(result.AccountType ?? 0),
+                Status = (AccountStatus)(result.Status ?? 0),
                 Balance = result.Balance ?? 0m,
                 CreatedAt = result.CreatedAt ?? DateTime.UtcNow
             };
@@ -71,6 +67,16 @@ namespace Account_Track.Services.Implementations
         public async Task<(List<AccountListResponseDto> Items, PaginationDto Pagination)> GetAccountsAsync(
             GetAccountsRequestDto request, int userId)
         {
+            // Parity with Transactions/Approvals: basic range guards
+            if (request.FromDate.HasValue && request.ToDate.HasValue && request.FromDate > request.ToDate)
+                throw new BusinessException("INVALID_DATE_RANGE", "FromDate cannot be greater than ToDate");
+
+            if (request.Limit <= 0)
+                throw new BusinessException("INVALID_PAGINATION", "Limit must be greater than zero");
+
+            if (request.Offset < 0)
+                throw new BusinessException("INVALID_PAGINATION", "Offset cannot be negative");
+
             var sql = @"EXEC dbo.usp_GetAccounts 
                         @AccountNumber, @AccountType, @Status, @Search,
                         @FromDate, @ToDate, @SortBy, @SortOrder, 
@@ -112,6 +118,9 @@ namespace Account_Track.Services.Implementations
         // ------------------------------------------------
         public async Task<AccountDetailResponseDto> GetAccountByIdAsync(int accountId, int userId)
         {
+            if (accountId <= 0)
+                throw new BusinessException("INVALID_ID", "AccountId must be a positive integer");
+
             var sql = "EXEC dbo.usp_GetAccountById @AccountId, @UserId";
             var parameters = new[]
             {
@@ -136,19 +145,21 @@ namespace Account_Track.Services.Implementations
         // ------------------------------------------------
         public async Task<AccountDetailResponseDto> UpdateAccountAsync(int accountId, UpdateAccountRequestDto dto, int userId)
         {
+            if (accountId <= 0)
+                throw new BusinessException("INVALID_ID", "AccountId must be a positive integer");
+
             if (string.IsNullOrWhiteSpace(dto.RowVersionBase64))
                 throw new BusinessException("INVALID_REQUEST", "rowVersionBase64 is required");
 
             var sql = @"
-    EXEC dbo.usp_Account_Update 
-    @AccountId=@AccountId,
-    @CustomerName=@CustomerName,
-    @Status=@Status,
-    @Remarks=@Remarks,
-    @RowVersionBase64=@RowVersionBase64,
-    @PerformedByUserId=@PerformedByUserId,
-    @AccountType=@AccountType;";
-
+                EXEC dbo.usp_Account_Update 
+                    @AccountId=@AccountId,
+                    @CustomerName=@CustomerName,
+                    @Status=@Status,
+                    @Remarks=@Remarks,
+                    @RowVersionBase64=@RowVersionBase64,
+                    @PerformedByUserId=@PerformedByUserId,
+                    @AccountType=@AccountType;";
 
             var parameters = new[]
             {
@@ -159,10 +170,9 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@RowVersionBase64", dto.RowVersionBase64),
                 new SqlParameter("@PerformedByUserId", userId),
                 new SqlParameter("@AccountType", dto.AccountType ?? (object)DBNull.Value)
-
             };
 
-            // The SP returns a success envelope + updated account projection.
+            // Expect the SP to return an envelope row indicating success/failure + projection
             var result = (await _db.Database
                 .SqlQueryRaw<UpdateAccountSpResult>(sql, parameters)
                 .ToListAsync())
@@ -173,8 +183,6 @@ namespace Account_Track.Services.Implementations
 
             if (result.Success == 0)
                 throw new BusinessException(result.ErrorCode ?? "DB_ERROR", result.Message ?? "Update failed");
-
-            // Note: Update SP does not include branch fields; they can be fetched via GetAccountById if needed.
 
             return new AccountDetailResponseDto
             {
@@ -191,8 +199,6 @@ namespace Account_Track.Services.Implementations
                 UpdatedAt = result.UpdatedAt,
                 RowVersionBase64 = result.RowVersionBase64 ?? string.Empty
             };
-
         }
-
     }
 }

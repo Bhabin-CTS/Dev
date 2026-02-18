@@ -11,7 +11,7 @@ namespace Account_Track.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
-            CREATE PROCEDURE [dbo].[usp_RevokeExpiredRefreshToken]
+            CREATE OR ALTER PROCEDURE [dbo].[usp_RevokeExpiredRefreshToken]
                 @UserId INT,
                 @RefreshToken VARCHAR(255)
             AS

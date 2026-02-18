@@ -1,6 +1,7 @@
 ﻿using Account_Track.Data;
 using Account_Track.DTOs;
 using Account_Track.DTOs.ApprovalDto;
+using Account_Track.Utils; // BusinessException
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,41 +16,42 @@ public class ApprovalService : IApprovalService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Update an approval decision.
+    /// Throws BusinessException when SP reports failure or returns no result.
+    /// </summary>
     public async Task UpdateDecisionAsync(int approvalId, int reviewerId, int decision, string? comments)
     {
+        if (approvalId <= 0)
+            throw new BusinessException("INVALID_ID", "ApprovalId must be a positive integer");
+
+        var sql = "EXEC usp_UpdateApprovalDecision @ApprovalID, @ReviewerID, @Decision, @Comments";
+
         var parameters = new[]
         {
             new SqlParameter("@ApprovalID", approvalId),
             new SqlParameter("@ReviewerID", reviewerId),
             new SqlParameter("@Decision", decision),
             new SqlParameter("@Comments", (object?)comments ?? DBNull.Value),
-
         };
 
-        try
-        {
-            _logger.LogInformation("UpdateDecision: Approval={ApprovalId} Reviewer={ReviewerId} Decision={Decision}",
-                approvalId, reviewerId, decision);
+        // Expect the SP to return a single row indicating success/failure (like transaction SP)
+        var result = (await _context.Database
+            .SqlQueryRaw<UpdateApprovalSpResult>(sql, parameters)
+            .ToListAsync())
+            .FirstOrDefault();
 
-            await _context.Database.ExecuteSqlRawAsync(
-                "EXEC usp_UpdateApprovalDecision @ApprovalID, @ReviewerID, @Decision, @Comments",
-                parameters);
+        if (result == null)
+            throw new BusinessException("NO_SP_RESULT", "No response returned from usp_UpdateApprovalDecision");
 
-            _logger.LogInformation("UpdateDecision: OK Approval={ApprovalId} Reviewer={ReviewerId}", approvalId, reviewerId);
-        }
-
-        catch (SqlException ex) when (ex.Number == 50001)
-        {
-            _logger.LogWarning(ex, "Known business/state issue...");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error...");
-            throw;
-        }
+        if (result.Success == 0)
+            throw new BusinessException(result.ErrorCode ?? "APPROVAL_FAILED",
+                                        result.Message ?? "Approval update failed");
     }
 
+    /// <summary>
+    /// Returns pending approvals for reviewer. Empty list is OK (no exception).
+    /// </summary>
     public async Task<List<PendingApprovalDto>> GetPendingApprovalsAsync(int reviewerId)
     {
         var sql = @"
@@ -61,26 +63,18 @@ public class ApprovalService : IApprovalService
                 Amount,
                 ReviewerId,
                 Decision
-            FROM dbo.vw_PendingApprovals
+            FROM vw_PendingApprovals
             WHERE ReviewerId = @ReviewerID
               AND Decision   = 1";
 
-        var p = new SqlParameter("@ReviewerID", reviewerId);
-
-        try
-        {
-            _logger.LogInformation("GetPending: Reviewer={ReviewerId}", reviewerId);
-            var list = await _context.Database.SqlQueryRaw<PendingApprovalDto>(sql, p).ToListAsync();
-            _logger.LogInformation("GetPending: {Count} items Reviewer={ReviewerId}", list.Count, reviewerId);
-            return list;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GetPending: error Reviewer={ReviewerId}", reviewerId);
-            throw;
-        }
+        return await _context.Database
+            .SqlQueryRaw<PendingApprovalDto>(sql, new SqlParameter("@ReviewerID", reviewerId))
+            .ToListAsync();
     }
 
+    /// <summary>
+    /// Returns audit entries for a transaction. Empty list is OK (no exception).
+    /// </summary>
     public async Task<List<ApprovalAuditDto>> GetApprovalAuditAsync(int transactionId)
     {
         var sql = @"
@@ -92,28 +86,23 @@ public class ApprovalService : IApprovalService
                 Decision,
                 ApprovalDate,
                 Comments
-            FROM dbo.vw_ApprovalAudit
+            FROM vw_ApprovalAudit
             WHERE TransactionID = @TransactionID
             ORDER BY ApprovalDate DESC";
 
-        var p = new SqlParameter("@TransactionID", transactionId);
-
-        try
-        {
-            _logger.LogInformation("GetAudit: Tx={TransactionId}", transactionId);
-            var list = await _context.Database.SqlQueryRaw<ApprovalAuditDto>(sql, p).ToListAsync();
-            _logger.LogInformation("GetAudit: {Count} items Tx={TransactionId}", list.Count, transactionId);
-            return list;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GetAudit: error Tx={TransactionId}", transactionId);
-            throw;
-        }
+        return await _context.Database
+            .SqlQueryRaw<ApprovalAuditDto>(sql, new SqlParameter("@TransactionID", transactionId))
+            .ToListAsync();
     }
 
-    public async Task<ApprovalDecisionDto?> GetApprovalDetailAsync(int approvalId)
+    /// <summary>
+    /// Returns detail by approvalId. Throws KeyNotFoundException if not found (parity with TransactionService).
+    /// </summary>
+    public async Task<ApprovalDecisionDetailDto?> GetApprovalDetailAsync(int approvalId)
     {
+        if (approvalId <= 0)
+            throw new BusinessException("INVALID_ID", "ApprovalId must be a positive integer");
+
         var sql = @"
             SELECT TOP 1
                 ApprovalId,
@@ -127,32 +116,33 @@ public class ApprovalService : IApprovalService
                 ReviewerId,
                 ReviewerName,
                 ReviewerRole
-            FROM dbo.vw_ApprovalDetail
+            FROM vw_ApprovalDetail
             WHERE ApprovalId = @ApprovalID";
 
-        var p = new SqlParameter("@ApprovalID", approvalId);
+        var dto = await _context.Database
+            .SqlQueryRaw<ApprovalDecisionDetailDto>(sql, new SqlParameter("@ApprovalID", approvalId))
+            .FirstOrDefaultAsync();
 
-        try
-        {
-            _logger.LogInformation("GetDetail: Approval={ApprovalId}", approvalId);
-            var dto = await _context.Database.SqlQueryRaw<ApprovalDecisionDto>(sql, p).FirstOrDefaultAsync();
-            _logger.LogInformation("GetDetail: Found={Found} Approval={ApprovalId}", dto != null, approvalId);
-            return dto;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GetDetail: error Approval={ApprovalId}", approvalId);
-            throw;
-        }
+        if (dto == null)
+            throw new KeyNotFoundException("APPROVAL_NOT_FOUND_OR_ACCESS_DENIED");
+
+        return dto;
     }
+
+    /// <summary>
+    /// List approvals with pagination. Throws BusinessException for invalid filters (date range).
+    /// </summary>
     public async Task<(List<ApprovalDecisionDto> Data, PaginationDto Pagination)> GetApprovalsAsync(GetApprovalsRequestDto request, int userId)
     {
-        // Clamp pagination server-side
-        var limit = request.Limit <= 0 ? 20 : Math.Min(request.Limit, 100);
-        var offset = Math.Max(request.Offset, 0);
+        // Consistent with TransactionService: guard common invalid ranges
+        if (request.FromDate.HasValue && request.ToDate.HasValue && request.FromDate > request.ToDate)
+            throw new BusinessException("INVALID_DATE_RANGE", "FromDate cannot be greater than ToDate");
+
+        if (request.MinAmount.HasValue && request.MaxAmount.HasValue && request.MinAmount > request.MaxAmount)
+            throw new BusinessException("INVALID_AMOUNT_RANGE", "MinAmount cannot be greater than MaxAmount");
 
         var sql = @"
-            EXEC dbo.usp_GetApprovals
+            EXEC usp_GetApprovals
                 @AccountId,
                 @ReviewerId,
                 @Decision,
@@ -177,59 +167,27 @@ public class ApprovalService : IApprovalService
             new SqlParameter("@MaxAmount",  (object?)request.MaxAmount ?? DBNull.Value),
             new SqlParameter("@FromDate",   (object?)request.FromDate ?? DBNull.Value),
             new SqlParameter("@ToDate",     (object?)request.ToDate ?? DBNull.Value),
-            new SqlParameter("@Limit",      limit),
-            new SqlParameter("@Offset",     offset),
-            new SqlParameter("@SortBy",     (object?)request.SortBy ?? DBNull.Value),
-            new SqlParameter("@SortDir",    (object?)request.SortDir ?? DBNull.Value),
+            new SqlParameter("@Limit",      request.Limit),
+            new SqlParameter("@Offset",     request.Offset),
+            new SqlParameter("@SortBy",     request.SortBy ?? (object)DBNull.Value),
+            new SqlParameter("@SortDir",    request.SortDir ?? (object)DBNull.Value),
             new SqlParameter("@UserId",     userId)
         };
 
-        try
-        {
-            _logger.LogInformation(
-                "GetApprovals: fetching approvals with filters {@Request}, UserId={UserId}, Limit={Limit}, Offset={Offset}",
-                request, userId, limit, offset);
+        var list = await _context.Database
+            .SqlQueryRaw<ApprovalDecisionDto>(sql, parameters)
+            .ToListAsync();
 
-            var list = await _context.Database
-                                     .SqlQueryRaw<ApprovalDecisionDto>(sql, parameters)
-                                     .ToListAsync();
+        int total = list.FirstOrDefault()?.TotalCount ?? 0;
 
-            var total = list.FirstOrDefault()?.TotalCount ?? 0;
-            var pagination = new PaginationDto { Total = total, Limit = limit, Offset = offset };
-
-            _logger.LogInformation(
-                "GetApprovals: fetched {Count} approvals (total={Total}) for UserId={UserId}",
-                list.Count, total, userId);
-
-            return (list, pagination);
-        }
-        catch (SqlException ex)
-        {
-            // SQL Server-specific errors (time-outs, deadlocks, constraint violations etc.)
-            _logger.LogError(ex,
-                "GetApprovals: SQL error while executing usp_GetApprovals for UserId={UserId}. ErrorNumber={Number}, State={State}, Class={Class}",
-                userId, ex.Number, ex.State, ex.Class);
-            throw; // Re-throw to let upper layers (controller/middleware) convert to appropriate HTTP response
-        }
-        catch (DbUpdateException ex)
-        {
-            // Unlikely here since we're reading, but useful if read triggers computed/stored logic
-            _logger.LogError(ex,
-                "GetApprovals: DB update error encountered during read path for UserId={UserId}", userId);
-            throw;
-        }
-        catch (OperationCanceledException ex)
-        {
-            // If you add CancellationToken later, this will capture client cancellation/timeouts
-            _logger.LogWarning(ex,
-                "GetApprovals: operation was canceled for UserId={UserId}", userId);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "GetApprovals: unexpected error for UserId={UserId}", userId);
-            throw;
-        }
+        return (list,
+            new PaginationDto
+            {
+                Total = total,
+                Limit = request.Limit,
+                Offset = request.Offset
+            }
+        );
     }
 }
+

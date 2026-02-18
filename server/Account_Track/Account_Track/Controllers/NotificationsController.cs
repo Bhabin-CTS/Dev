@@ -5,7 +5,6 @@ using Account_Track.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Account_Track.Controllers
 {
@@ -13,19 +12,19 @@ namespace Account_Track.Controllers
     [Route("v1/[controller]")]
     public class NotificationsController : ControllerBase
     {
-        private readonly INotificationService _notificationService; 
-        public NotificationsController(INotificationService notificationService) 
-        { 
-            _notificationService = notificationService; 
+        private readonly INotificationService _notificationService;
+        public NotificationsController(INotificationService notificationService)
+        {
+            _notificationService = notificationService;
         }
-        
+
         [HttpGet("getAllNotification")]
         [Authorize]
-        public async Task<IActionResult> GetNotifications() 
+        public async Task<IActionResult> GetNotifications()
         {
             try
             {
-                var userId = int.Parse(User.FindFirst("UserId").Value);
+                var userId = int.Parse(User.FindFirst("UserId")!.Value);
                 var result = await _notificationService.GetNotificationsAsync(userId);
                 return Ok(new ApiResponseDto<List<NotificationListResponseDto>>
                 {
@@ -60,19 +59,19 @@ namespace Account_Track.Controllers
             }
 
         }
-        
+
         [HttpPut("markAsRead")]
         [Authorize]
-        public async Task<IActionResult> UpdateNotifications([FromBody] UpdateNotificationsRequestDto dto) 
+        public async Task<IActionResult> UpdateNotifications([FromBody] UpdateNotificationsRequestDto dto)
         {
             try
             {
-                var userId = int.Parse(User.FindFirst("UserId").Value);
+                var userId = int.Parse(User.FindFirst("UserId")!.Value);
                 await _notificationService.UpdateNotificationsAsync(dto, userId);
                 return Ok(new ApiResponseDto<object>
                 {
                     Success = true,
-                    Data = null,
+                    Data = null!,
                     Message = "Notifications marked as read successfully",
                     TraceId = HttpContext.TraceIdentifier,
                     Timestamp = DateTime.UtcNow

@@ -6,5 +6,5 @@ public interface IApprovalService
     Task<List<PendingApprovalDto>> GetPendingApprovalsAsync(int reviewerId);
     Task<List<ApprovalAuditDto>> GetApprovalAuditAsync(int transactionId);
     Task<(List<ApprovalDecisionDto> Data, PaginationDto Pagination)> GetApprovalsAsync(GetApprovalsRequestDto request, int userId);
-    Task<ApprovalDecisionDto?> GetApprovalDetailAsync(int approvalId);
+    Task<ApprovalDecisionDetailDto?> GetApprovalDetailAsync(int approvalId);
 }

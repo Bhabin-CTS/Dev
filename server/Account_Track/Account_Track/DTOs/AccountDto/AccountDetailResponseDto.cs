@@ -1,5 +1,4 @@
-﻿using System;
-using Account_Track.Utils.Enum;
+﻿using Account_Track.Utils.Enum;
 
 namespace Account_Track.DTOs.AccountDto
 {
