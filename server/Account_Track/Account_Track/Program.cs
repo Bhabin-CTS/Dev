@@ -141,6 +141,7 @@ namespace Account_Track
             builder.Services.AddScoped<IJwtService, JwtService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
 
 
             var app = builder.Build();
