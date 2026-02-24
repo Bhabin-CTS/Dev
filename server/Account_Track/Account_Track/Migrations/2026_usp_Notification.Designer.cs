@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260201173726_Transaction_usp_CreateTransaction")]
-    partial class Transaction_usp_CreateTransaction
+    [Migration("20260224175026_usp_Notification")]
+    partial class usp_Notification
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,7 +34,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Balance")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("BranchId")
@@ -78,7 +77,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Balance")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("BranchId")
@@ -104,7 +102,7 @@ namespace Account_Track.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("AccountId");
@@ -136,7 +134,7 @@ namespace Account_Track.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("DecidedAt")
+                    b.Property<DateTime?>("DecidedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Decision")
@@ -201,7 +199,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("beforeState")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("AuditLogId");
@@ -256,7 +253,7 @@ namespace Account_Track.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("BranchId");
@@ -277,10 +274,18 @@ namespace Account_Track.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LoginId"));
 
-                    b.Property<DateTime>("LogOutAt")
-                        .HasColumnType("datetime2");
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("LoginAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("RefreshTokenExpiry")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
@@ -288,9 +293,13 @@ namespace Account_Track.Migrations
 
                     b.HasKey("LoginId");
 
-                    b.HasIndex(new[] { "UserId", "LoginAt" }, "IX_Login_User_Date");
+                    b.HasIndex(new[] { "RefreshToken" }, "IX_Login_RefreshToken");
 
-                    b.HasIndex(new[] { "UserId", "LogOutAt" }, "IX_Logout_User_Date");
+                    b.HasIndex(new[] { "UserId" }, "IX_Login_UserId");
+
+                    b.HasIndex(new[] { "UserId", "RefreshToken" }, "IX_Login_UserId_RefreshToken");
+
+                    b.HasIndex(new[] { "UserId", "LoginAt" }, "IX_Login_User_Date");
 
                     b.ToTable("t_LoginLog");
                 });
@@ -317,7 +326,7 @@ namespace Account_Track.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
@@ -374,16 +383,16 @@ namespace Account_Track.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransactionID"));
 
                     b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("BalanceAfterTxn")
-                        .HasPrecision(18, 2)
+                    b.Property<decimal?>("BalanceAfterTxn")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("BalanceBefore")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -415,6 +424,10 @@ namespace Account_Track.Migrations
 
                     b.HasKey("TransactionID");
 
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex(new[] { "Status", "BranchId" }, "IX_Txn_Branch");
+
                     b.HasIndex(new[] { "FromAccountId" }, "IX_Txn_FromAcc");
 
                     b.HasIndex(new[] { "IsHighValue" }, "IX_Txn_HighValue");
@@ -439,11 +452,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
-
-                    b.Property<string>("AccessToken")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
 
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
@@ -590,6 +598,12 @@ namespace Account_Track.Migrations
 
             modelBuilder.Entity("Account_Track.Model.t_Transaction", b =>
                 {
+                    b.HasOne("Account_Track.Model.t_Branch", "Branch")
+                        .WithMany("Transactions")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Account_Track.Model.t_User", "CreatedByUser")
                         .WithMany("Transactions")
                         .HasForeignKey("CreatedByUserId")
@@ -606,6 +620,8 @@ namespace Account_Track.Migrations
                         .WithMany()
                         .HasForeignKey("ToAccountId")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Branch");
 
                     b.Navigation("CreatedByUser");
 
@@ -635,6 +651,8 @@ namespace Account_Track.Migrations
                     b.Navigation("Accounts");
 
                     b.Navigation("Reports");
+
+                    b.Navigation("Transactions");
 
                     b.Navigation("Users");
                 });

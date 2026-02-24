@@ -17,8 +17,15 @@ namespace Account_Track.Services.Implementations
 
         public async Task<List<NotificationListResponseDto>> GetNotificationsAsync(int userId)
         {
-            var sql = "EXEC usp_GetNotifications @UserId";
-            var parameters = new[] { new SqlParameter("@UserId", userId) };
+            var sql = @"EXEC usp_Notification
+                        @Action = @Action,
+                        @UserId = @UserId";
+            var parameters = new[]
+            {
+                new SqlParameter("@Action", "GET"),
+                new SqlParameter("@UserId", userId)
+            };
+
             var spresult = await _context.Database
                 .SqlQueryRaw<NotificationListResponseDto>(sql, parameters)
                 .ToListAsync();
@@ -29,11 +36,21 @@ namespace Account_Track.Services.Implementations
             if (dto.NotificationIds == null || !dto.NotificationIds.Any())
                 throw new BusinessException("INVALID_REQUEST", "NotificationIds cannot be empty");
             var ids = string.Join(",", dto.NotificationIds);
+            var sql = @"EXEC usp_Notification
+                        @Action = @Action,
+                        @UserId = @UserId,
+                        @NotificationIds = @NotificationIds";
+
+            var parameters = new[]
+            {
+                new SqlParameter("@Action", "UPDATE"),
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@NotificationIds", ids)
+            };
+
             var affected = await _context.Database
-                            .ExecuteSqlRawAsync(
-                            "EXEC usp_UpdateNotifications @UserId, @NotificationIds",
-                            new SqlParameter("@UserId", userId),
-                            new SqlParameter("@NotificationIds", ids));
+                .ExecuteSqlRawAsync(sql, parameters);
+             
             if (affected == 0)
                 throw new BusinessException("NOT_FOUND", "No notifications updated");
         }

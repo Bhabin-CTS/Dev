@@ -13,16 +13,31 @@ namespace Account_Track.Migrations
             var sp = @"
             CREATE OR ALTER PROCEDURE [dbo].[usp_InsertLoginLog]
                 @UserId INT,
-                @RefreshToken VARCHAR(255),
+                @RefreshToken NVARCHAR(500),
                 @RefreshTokenExpiry DATETIME
             AS
             BEGIN
                 SET NOCOUNT ON;
-                INSERT INTO t_LoginLog (UserId, LoginAt, RefreshToken, RefreshTokenExpiry, IsRevoked)
-                VALUES (@UserId, GETUTCDATE(), @RefreshToken, @RefreshTokenExpiry, 0);
-                DECLARE @NewLoginId INT = SCOPE_IDENTITY();
 
-                SELECT @NewLoginId AS  LoginId;
+                INSERT INTO t_LoginLog
+                (
+                    UserId,
+                    LoginAt,
+                    RefreshToken,
+                    RefreshTokenExpiry,
+                    IsRevoked
+                )
+                VALUES
+                (
+                    @UserId,
+                    GETUTCDATE(),
+                    @RefreshToken,
+                    @RefreshTokenExpiry,
+                    0
+                );
+
+                -- Return the newly created LoginId safely
+                SELECT CAST(SCOPE_IDENTITY() AS INT) AS LoginId;
             END
             ";
 

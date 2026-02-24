@@ -39,11 +39,21 @@ namespace Account_Track.Services.Implementations
                     "ToAccountId should be null for deposit and withdrawal transactions");
 
             // ===== CALL STORED PROCEDURE =====
-            var sql = "EXEC usp_Transaction @Action,@UserId,@LoginId,@FromAccountId,@ToAccountId,@Type,@Amount,@Remarks";
+            //var sql = "EXEC usp_Transaction @Action,@CreatedByUserId,@LoginId,@FromAccountId,@ToAccountId,@Type,@Amount,@Remarks";
+            var sql = @"
+                    EXEC usp_Transaction 
+                        @Action=@Action,
+                        @LoginId=@LoginId,
+                        @CreatedByUserId=@CreatedByUserId,
+                        @FromAccountId=@FromAccountId,
+                        @ToAccountId=@ToAccountId,
+                        @Type=@Type,
+                        @Amount=@Amount,
+                        @Remarks=@Remarks";
             var parameters = new[] 
             {
                 new SqlParameter("@Action", "CREATE"),
-                new SqlParameter("@UserId", userId), 
+                new SqlParameter("@CreatedByUserId", userId), 
                 new SqlParameter("@LoginId", loginId),
                 new SqlParameter("@FromAccountId", dto.FromAccountId), 
                 new SqlParameter("@ToAccountId", dto.ToAccountId ?? (object)DBNull.Value), 
@@ -81,7 +91,23 @@ namespace Account_Track.Services.Implementations
             if (request.UpdatedFrom > request.UpdatedTo)
                 throw new BusinessException("INVALID_DATE_RANGE", "UpdatedFrom cannot be greater than UpdatedTo");
 
-            var sql = @"EXEC usp_Transaction @Action,@AccountId, @Type, @Status, @IsHighValue, @CreatedFrom, @CreatedTo, @UpdatedFrom, @UpdatedTo, @SortBy, @SortOrder, @Limit, @Offset, @UserId";
+            //var sql = @"EXEC usp_Transaction @Action,@AccountId, @Type, @Status, @IsHighValue, @CreatedFrom, @CreatedTo, @UpdatedFrom, @UpdatedTo, @SortBy, @SortOrder, @Limit, @Offset, @UserId";
+            var sql = @"
+                EXEC usp_Transaction
+                    @Action = @Action,
+                    @UserId = @UserId,
+                    @AccountId = @AccountId,
+                    @Type = @Type,
+                    @Status = @Status,
+                    @IsHighValue = @IsHighValue,
+                    @CreatedFrom = @CreatedFrom,
+                    @CreatedTo = @CreatedTo,
+                    @UpdatedFrom = @UpdatedFrom,
+                    @UpdatedTo = @UpdatedTo,
+                    @SortBy = @SortBy,
+                    @SortOrder = @SortOrder,
+                    @Limit = @Limit,
+                    @Offset = @Offset";
             var parameters = new[]
             {
                 new SqlParameter("@Action", "LIST"),
@@ -128,7 +154,11 @@ namespace Account_Track.Services.Implementations
 
         public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId, int userId)
         {
-            var sql = "EXEC usp_Transaction @Action,@TransactionId, @UserId"; 
+            var sql = @"
+                EXEC usp_Transaction
+                    @Action = @Action,
+                    @UserId = @UserId,
+                    @TransactionId = @TransactionId";
             var parameters = new[] 
             {
                 new SqlParameter("@Action", "GET_BY_ID"),

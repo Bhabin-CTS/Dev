@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260223061846_Report_usp_OverallTransactionTrend")]
-    partial class Report_usp_OverallTransactionTrend
+    [Migration("20260224162655_usp_Report")]
+    partial class usp_Report
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -199,7 +199,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("beforeState")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("AuditLogId");
