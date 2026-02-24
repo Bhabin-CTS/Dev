@@ -5,13 +5,13 @@
 namespace Account_Track.Migrations
 {
     /// <inheritdoc />
-    public partial class usp_Report_Overall_AccountGrowth : Migration
+    public partial class Report_usp_OverallAccountGrowth : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
-            CREATE OR ALTER PROCEDURE [dbo].[usp_Report_Overall_AccountGrowth]
+            CREATE OR ALTER PROCEDURE [dbo].[usp_OverallAccountGrowth]
             (
                 @PeriodType VARCHAR(10) = 'MONTH',
                 @StartDate DATETIME,
@@ -128,7 +128,7 @@ namespace Account_Track.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"DROP PROCEDURE IF EXISTS [dbo].[usp_Report_Overall_AccountGrowth];");
+            migrationBuilder.Sql(@"DROP PROCEDURE IF EXISTS [dbo].[usp_OverallAccountGrowth];");
         }
     }
 }

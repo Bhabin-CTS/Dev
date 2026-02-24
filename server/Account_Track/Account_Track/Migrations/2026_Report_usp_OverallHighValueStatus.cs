@@ -5,13 +5,13 @@
 namespace Account_Track.Migrations
 {
     /// <inheritdoc />
-    public partial class usp_Report_Overall_HighValueStatus : Migration
+    public partial class Report_usp_OverallHighValueStatus : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
-            CREATE OR ALTER PROCEDURE [dbo].[usp_Report_Overall_HighValueStatus]
+            CREATE OR ALTER PROCEDURE [dbo].[usp_OverallHighValueStatus]
             (
                 @StartDate DATETIME,
                 @EndDate DATETIME,
@@ -47,7 +47,7 @@ namespace Account_Track.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"DROP PROCEDURE IF EXISTS [dbo].[usp_Report_Overall_HighValueStatus];");
+            migrationBuilder.Sql(@"DROP PROCEDURE IF EXISTS [dbo].[usp_OverallHighValueStatus];");
         }
     }
 }

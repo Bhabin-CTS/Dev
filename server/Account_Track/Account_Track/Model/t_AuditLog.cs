@@ -32,8 +32,8 @@ namespace Account_Track.Model
         [MaxLength(100),Required]
         public required string Action {  get; set; }
         
-        [Required, Column(TypeName ="nvarchar(max)")]
-        public required string beforeState {  get; set; }
+        [Column(TypeName ="nvarchar(max)")]
+        public string? beforeState {  get; set; }
 
         [Required, Column(TypeName = "nvarchar(max)")]
         public required string afterState { get; set; }

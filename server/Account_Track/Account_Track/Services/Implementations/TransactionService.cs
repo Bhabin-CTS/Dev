@@ -6,6 +6,7 @@ using Account_Track.Utils;
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Account_Track.Services.Implementations
 {
@@ -18,7 +19,7 @@ namespace Account_Track.Services.Implementations
             _context = db;
         }
 
-        public async Task<CreateTransactionResponseDto> CreateTransactionAsync(CreateTransactionRequestDto dto, int userId)
+        public async Task<CreateTransactionResponseDto> CreateTransactionAsync(CreateTransactionRequestDto dto, int userId,int loginId)
         {
             // ===== VALIDATION =====
             if (dto.Type == TransactionType.Transfer && dto.FromAccountId == dto.ToAccountId)
@@ -38,10 +39,12 @@ namespace Account_Track.Services.Implementations
                     "ToAccountId should be null for deposit and withdrawal transactions");
 
             // ===== CALL STORED PROCEDURE =====
-            var sql = "EXEC usp_CreateTransaction @UserId,@FromAccountId,@ToAccountId,@Type,@Amount,@Remarks";
+            var sql = "EXEC usp_Transaction @Action,@UserId,@LoginId,@FromAccountId,@ToAccountId,@Type,@Amount,@Remarks";
             var parameters = new[] 
-            { 
+            {
+                new SqlParameter("@Action", "CREATE"),
                 new SqlParameter("@UserId", userId), 
+                new SqlParameter("@LoginId", loginId),
                 new SqlParameter("@FromAccountId", dto.FromAccountId), 
                 new SqlParameter("@ToAccountId", dto.ToAccountId ?? (object)DBNull.Value), 
                 new SqlParameter("@Type", dto.Type), 
@@ -78,9 +81,10 @@ namespace Account_Track.Services.Implementations
             if (request.UpdatedFrom > request.UpdatedTo)
                 throw new BusinessException("INVALID_DATE_RANGE", "UpdatedFrom cannot be greater than UpdatedTo");
 
-            var sql = @"EXEC usp_GetTransactions @AccountId, @Type, @Status, @IsHighValue, @CreatedFrom, @CreatedTo, @UpdatedFrom, @UpdatedTo, @SortBy, @SortOrder, @Limit, @Offset, @UserId";
+            var sql = @"EXEC usp_Transaction @Action,@AccountId, @Type, @Status, @IsHighValue, @CreatedFrom, @CreatedTo, @UpdatedFrom, @UpdatedTo, @SortBy, @SortOrder, @Limit, @Offset, @UserId";
             var parameters = new[]
             {
+                new SqlParameter("@Action", "LIST"),
                 new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value), 
                 new SqlParameter("@Type", request.Type ?? (object)DBNull.Value), 
                 new SqlParameter("@Status", request.Status ?? (object)DBNull.Value), 
@@ -124,9 +128,10 @@ namespace Account_Track.Services.Implementations
 
         public async Task<TransactionDetailResponseDto> GetTransactionByIdAsync(int transactionId, int userId)
         {
-            var sql = "EXEC usp_GetTransactionById @TransactionId, @UserId"; 
+            var sql = "EXEC usp_Transaction @Action,@TransactionId, @UserId"; 
             var parameters = new[] 
-            { 
+            {
+                new SqlParameter("@Action", "GET_BY_ID"),
                 new SqlParameter("@TransactionId", transactionId),
                 new SqlParameter("@UserId", userId) 
             };

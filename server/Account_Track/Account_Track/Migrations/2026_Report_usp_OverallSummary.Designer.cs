@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260222180455_usp_Report_Overall_HighValueStatus")]
-    partial class usp_Report_Overall_HighValueStatus
+    [Migration("20260223061225_Report_usp_OverallSummary")]
+    partial class Report_usp_OverallSummary
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

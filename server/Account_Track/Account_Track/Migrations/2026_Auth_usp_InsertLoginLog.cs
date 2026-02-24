@@ -17,8 +17,12 @@ namespace Account_Track.Migrations
                 @RefreshTokenExpiry DATETIME
             AS
             BEGIN
+                SET NOCOUNT ON;
                 INSERT INTO t_LoginLog (UserId, LoginAt, RefreshToken, RefreshTokenExpiry, IsRevoked)
                 VALUES (@UserId, GETUTCDATE(), @RefreshToken, @RefreshTokenExpiry, 0);
+                DECLARE @NewLoginId INT = SCOPE_IDENTITY();
+
+                SELECT @NewLoginId AS  LoginId;
             END
             ";
 

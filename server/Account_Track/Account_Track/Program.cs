@@ -29,9 +29,8 @@ namespace Account_Track
                         .EnableSensitiveDataLogging() // shows parameter values (turn off later)
                         .LogTo(Console.WriteLine,     // logs SQL to console
                                LogLevel.Information);
-
-
             });
+
             //Added for the indentation in the Api response--For postman
             builder.Services.AddControllers()
                     .AddJsonOptions(options =>
@@ -107,6 +106,7 @@ namespace Account_Track
                     }
                 };
             });
+
             builder.Services.Configure<ApiBehaviorOptions>(options =>
             {
                 options.InvalidModelStateResponseFactory = context =>
@@ -142,6 +142,18 @@ namespace Account_Track
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<IReportService, ReportService>();
+            
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend",
+                    policy =>
+                    {
+                        policy.WithOrigins("http://localhost:4200") // Angular dev server
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials();
+                    });
+            });
 
 
             var app = builder.Build();
@@ -152,6 +164,7 @@ namespace Account_Track
                 app.MapOpenApi();
             }
             app.UseHttpsRedirection();
+            app.UseCors("AllowFrontend");
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

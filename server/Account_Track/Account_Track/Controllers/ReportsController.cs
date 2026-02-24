@@ -20,6 +20,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost("overall-summary")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverallSummary([FromBody] OverallSummaryRequestDto dto)
         {
             try
@@ -70,6 +71,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost("overall-transaction-trend")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverallTransactionTrend([FromBody] TransactionTrendRequestDto dto)
         {
             try
@@ -122,6 +124,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost("overall-txn-type-breakdown")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverallTxnTypeBreakdown([FromBody] TxnTypeBreakdownRequestDto dto)
         {
             try
@@ -174,6 +177,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost("overall-account-growth")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverallAccountGrowth([FromBody] AccountGrowthRequestDto dto)
         {
             try
@@ -226,6 +230,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost("overall-highvalue-status")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverallHighValueStatus([FromBody] HighValueStatusRequestDto dto)
         {
             try
@@ -278,6 +283,7 @@ namespace Account_Track.Controllers
         }
 
         [HttpPost("overall-top-branches")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverallTopBranches([FromBody] TopBranchesRequestDto dto)
         {
             try

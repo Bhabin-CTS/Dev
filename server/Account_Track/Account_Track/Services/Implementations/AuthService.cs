@@ -26,7 +26,7 @@ namespace Account_Track.Services.Implementations
         {
             var sql = "EXEC USP_GetUserByEmail @Email"; 
             var parameters = new[] 
-            { 
+            {
                 new SqlParameter("@Email", dto.Email) 
             };
             var users = await _context.Database
@@ -63,20 +63,32 @@ namespace Account_Track.Services.Implementations
 
 
             // GENERATE TOKENS
-            var accessToken = _jwtService.GenerateAccessToken(user);
+            
             var refreshToken = _jwtService.GenerateRefreshToken();
 
             var refreshDays = Convert.ToDouble(_config["Jwt:RefreshTokenExpiryDays"] ?? "7");
             var refreshExpiry = DateTime.UtcNow.AddDays(refreshDays);
 
+            //// Store refresh token in LoginLog
+            //await _context.Database.ExecuteSqlRawAsync(
+            //    "EXEC usp_InsertLoginLog @UserId, @RefreshToken, @RefreshTokenExpiry",
+            //    new SqlParameter("@UserId", user.UserId),
+            //    new SqlParameter("@RefreshToken", refreshToken),
+            //    new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
+            //);
 
-            // Store refresh token in LoginLog
-            await _context.Database.ExecuteSqlRawAsync(
-                "EXEC usp_InsertLoginLog @UserId, @RefreshToken, @RefreshTokenExpiry",
-                new SqlParameter("@UserId", user.UserId),
-                new SqlParameter("@RefreshToken", refreshToken),
-                new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
-            );
+            var loginResult = await _context.Database
+                    .SqlQueryRaw<LoginLogResultDto>(
+                        "EXEC usp_InsertLoginLog @UserId, @RefreshToken, @RefreshTokenExpiry",
+                        new SqlParameter("@UserId", user.UserId),
+                        new SqlParameter("@RefreshToken", refreshToken),
+                        new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
+                    )
+                    .ToListAsync();
+
+            var loginId = loginResult.First().LoginId;
+
+            var accessToken = _jwtService.GenerateAccessToken(user, loginId);
 
             await _context.Database.ExecuteSqlRawAsync(
                 "EXEC usp_ResetUserAttempts @UserId",
@@ -104,7 +116,7 @@ namespace Account_Track.Services.Implementations
             //}; 
 
             var Email = principal.FindFirst(ClaimTypes.Email)?.Value;
-
+            var loginId = Convert.ToInt32(principal.FindFirst("LoginId")?.Value);
             var sqlUser = "EXEC USP_GetUserByEmail @Email";
             var userParams = new[]
             {
@@ -144,7 +156,7 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_EXPIRED_TOKEN","Invalid or expired refresh token");
             }
 
-            var newAccessToken = _jwtService.GenerateAccessToken(user);
+            var newAccessToken = _jwtService.GenerateAccessToken(user, loginId);
 
             return new LoginResponseDto
             {

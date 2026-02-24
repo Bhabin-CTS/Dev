@@ -21,7 +21,7 @@ namespace Account_Track.Services.Implementations
             if (dto.PeriodType != "MONTH" && dto.PeriodType != "YEAR")
                 throw new BusinessException("INVALID_PERIOD", "PeriodType must be MONTH or YEAR");
 
-            var sql = "EXEC usp_Report_Overall_Summary @PeriodType, @BranchId";
+            var sql = "EXEC usp_OverallSummary @PeriodType, @BranchId";
 
             var parameters = new[]
             {
@@ -45,7 +45,7 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_DATE_RANGE",
                     "StartDate cannot be greater than EndDate");
 
-            var sql = "EXEC usp_Report_Overall_TransactionTrend @StartDate, @EndDate, @BranchId";
+            var sql = "EXEC usp_OverallTransactionTrend @StartDate, @EndDate, @BranchId";
 
             var parameters = new[]
             {
@@ -73,7 +73,7 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_PERIOD",
                     "PeriodType must be WEEK, MONTH, or YEAR");
 
-            var sql = @"EXEC usp_Report_Overall_TxnTypeBreakdown 
+            var sql = @"EXEC usp_OverallTxnTypeBreakdown 
                 @StartDate, @EndDate, @PeriodType, @BranchId";
 
             var parameters = new[]
@@ -103,7 +103,7 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_PERIOD",
                     "PeriodType must be WEEK, MONTH, or YEAR");
 
-            var sql = @"EXEC usp_Report_Overall_AccountGrowth 
+            var sql = @"EXEC usp_OverallAccountGrowth 
                 @PeriodType, @StartDate, @EndDate, @BranchId";
 
             var parameters = new[]
@@ -127,7 +127,7 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_DATE_RANGE",
                     "StartDate cannot be greater than EndDate");
 
-            var sql = @"EXEC usp_Report_Overall_HighValueStatus 
+            var sql = @"EXEC usp_OverallHighValueStatus 
                 @StartDate, @EndDate, @BranchId";
 
             var parameters = new[]
@@ -168,7 +168,7 @@ namespace Account_Track.Services.Implementations
                         "StartDate cannot be greater than EndDate");
             }
 
-            var sql = @"EXEC usp_Report_Overall_TopBranches
+            var sql = @"EXEC usp_OverallTopBranches
                 @PeriodType, @RankBy, @StartDate, @EndDate";
 
             var parameters = new[]

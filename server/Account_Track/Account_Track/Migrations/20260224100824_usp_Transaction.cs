@@ -5,37 +5,73 @@
 namespace Account_Track.Migrations
 {
     /// <inheritdoc />
-    public partial class Transaction_usp_CreateTransaction : Migration
+    public partial class usp_Transaction : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            string sp_CreateTransaction = @"
-                CREATE OR ALTER PROCEDURE [dbo].[usp_CreateTransaction]
-                (
-                    @CreatedByUserId INT,
-                    @LoginId INT,  -- Added for Audit Log
-                    @FromAccountId INT = NULL,
-                    @ToAccountId INT = NULL,
-                    @Type INT,                -- 1=Deposit, 2=Withdrawal, 3=Transfer
-                    @Amount DECIMAL(18,2),
-                    @Remarks VARCHAR(500) = NULL
-                )
-                AS
+            var sp = @"
+            CREATE OR ALTER PROCEDURE [dbo].[usp_Transaction]
+            (
+                @Action VARCHAR(20),
+ 
+                -- Common
+                @UserId INT,
+                @LoginId INT = NULL,
+ 
+                -- Create
+                @CreatedByUserId INT = NULL,
+                @FromAccountId INT = NULL,
+                @ToAccountId INT = NULL,
+                @Type INT = NULL,
+                @Amount DECIMAL(18,2) = NULL,
+                @Remarks VARCHAR(500) = NULL,
+ 
+                -- GetById
+                @TransactionId INT = NULL,
+ 
+                -- List Filters
+                @AccountId INT = NULL,
+                @Status INT = NULL,
+                @IsHighValue BIT = NULL,
+                @CreatedFrom DATE = NULL,
+                @CreatedTo DATE = NULL,
+                @UpdatedFrom DATE = NULL,
+                @UpdatedTo DATE = NULL,
+                @SortBy NVARCHAR(50) = 'CreatedAt',
+                @SortOrder NVARCHAR(10) = 'DESC',
+                @Limit INT = 20,
+                @Offset INT = 0
+            )
+            AS
+            BEGIN
+                SET NOCOUNT ON;
+
+                ------------------------------------------------------------
+                -- SHARED VARIABLE DECLARATIONS (used across multiple actions)
+                ------------------------------------------------------------
+                DECLARE @UserBranchId INT;
+                DECLARE @UserRole INT;
+                DECLARE @ROLE_ADMIN INT = 3;
+                DECLARE @ROLE_MANAGER INT = 2;
+                DECLARE @ROLE_OFFICER INT = 1;
+ 
+                ------------------------------------------------------------
+                -- CREATE TRANSACTION
+                ------------------------------------------------------------
+                IF @Action = 'CREATE'
                 BEGIN
                     SET NOCOUNT ON;
  
                     BEGIN TRY
 
-                        BEGIN TRANSACTION;  -- Added Transaction Control
+                        BEGIN TRANSACTION;
  
                         ----------------------------------------------------
                         -- ENUM CONSTANTS (KEEP IN SYNC WITH C#)
                         ----------------------------------------------------
                         DECLARE @STATUS_COMPLETED INT = 1;
                         DECLARE @STATUS_PENDING   INT = 2;
- 
-                        DECLARE @ROLE_MANAGER INT = 2;
  
                         DECLARE @APPROVAL_PENDING INT = 1;
  
@@ -44,14 +80,18 @@ namespace Account_Track.Migrations
  
                         DECLARE @ACCOUNT_STATUS_ACTIVE INT = 1;
                         DECLARE @ACCOUNT_STATUS_CLOSED INT = 2;
+
                         ----------------------------------------------------
                         -- DETERMINE HIGH VALUE AND STATUS
+                        -- Note: Renamed to @TxnIsHighValue and @TxnStatus
+                        --       to avoid conflict with input parameters
+                        --       @IsHighValue and @Status
                         ----------------------------------------------------
-                        DECLARE @IsHighValue BIT =
+                        DECLARE @TxnIsHighValue BIT =
                             CASE WHEN @Amount >= 10000 THEN 1 ELSE 0 END;
  
-                        DECLARE @Status INT =
-                            CASE WHEN @IsHighValue = 1 THEN @STATUS_PENDING
+                        DECLARE @TxnStatus INT =
+                            CASE WHEN @TxnIsHighValue = 1 THEN @STATUS_PENDING
                                  ELSE @STATUS_COMPLETED END;
  
  
@@ -148,7 +188,7 @@ namespace Account_Track.Migrations
                         ----------------------------------------------------
                         SET @BalanceAfter =
                             CASE
-                                WHEN @Status = @STATUS_COMPLETED THEN
+                                WHEN @TxnStatus = @STATUS_COMPLETED THEN
                                     CASE
                                         WHEN @Type = 1 THEN @BalanceBefore + @Amount
                                         WHEN @Type IN (2,3) THEN @BalanceBefore - @Amount
@@ -183,8 +223,8 @@ namespace Account_Track.Migrations
                             @ToAccountId,
                             @Type,
                             @Amount,
-                            @Status,
-                            @IsHighValue,
+                            @TxnStatus,
+                            @TxnIsHighValue,
                             @BalanceBefore,
                             @BalanceAfter,
                             @Remarks,
@@ -227,7 +267,7 @@ namespace Account_Track.Migrations
                         ----------------------------------------------------
                         -- HIGH VALUE LOGIC : APPROVAL + NOTIFICATION
                         ----------------------------------------------------
-                        IF @IsHighValue = 1
+                        IF @TxnIsHighValue = 1
                         BEGIN
 
                             DECLARE @ManagerUserId INT;
@@ -237,7 +277,7 @@ namespace Account_Track.Migrations
                             FROM t_User
                             WHERE BranchId = @BranchId
                               AND Role = @ROLE_MANAGER
-                              AND Status = 1;      -- assuming 1 = Active user status
+                              AND Status = 1;
  
  
                             ------------------------------------------------
@@ -320,7 +360,7 @@ namespace Account_Track.Migrations
                         ----------------------------------------------------
                         -- UPDATE ACCOUNT BALANCES (ONLY IF COMPLETED)
                         ----------------------------------------------------
-                        IF @Status = @STATUS_COMPLETED
+                        IF @TxnStatus = @STATUS_COMPLETED
                         BEGIN
  
                             -- Deposit
@@ -355,7 +395,7 @@ namespace Account_Track.Migrations
  
                         END
 
-                        COMMIT TRANSACTION;  -- Commit if everything success
+                        COMMIT TRANSACTION;
   
                         ----------------------------------------------------
                         -- RETURN RESULT TO API
@@ -380,7 +420,7 @@ namespace Account_Track.Migrations
                     BEGIN CATCH
  
                         IF @@TRANCOUNT > 0
-                            ROLLBACK TRANSACTION;  -- Rollback if error
+                            ROLLBACK TRANSACTION;
 
                         SELECT
                             0 AS Success,
@@ -394,19 +434,116 @@ namespace Account_Track.Migrations
                             NULL AS CreatedAt;
  
                     END CATCH
+                    RETURN;
+                END
  
-                END;
-                ";
+                ------------------------------------------------------------
+                -- GET BY ID
+                ------------------------------------------------------------
+                IF @Action = 'GET_BY_ID'
+                BEGIN
+                    SET NOCOUNT ON;
 
-            migrationBuilder.Sql(sp_CreateTransaction);
+                    -- Get user info from DB
+                    SELECT 
+                        @UserBranchId = BranchId,
+                        @UserRole = Role
+                    FROM t_User
+                    WHERE UserId = @UserId;
+
+                    SELECT
+                        TransactionId,
+                        CreatedByUserId As CreatedBy,
+                        Type,
+                        Amount,
+                        Status,
+                        IsHighValue,
+                        FromAccountId,
+                        ToAccountId,
+                        BalanceBefore,
+                        BalanceAfterTxn as BalanceAfter,
+                        CreatedAt,
+                        UpdatedAt
+                    FROM t_Transaction
+                    WHERE TransactionId = @TransactionId
+                    AND (
+                            @UserRole = @ROLE_ADMIN
+                            OR BranchId = @UserBranchId
+                        );
+ 
+                    RETURN;
+                END
+ 
+                ------------------------------------------------------------
+                -- LIST
+                ------------------------------------------------------------
+                IF @Action = 'LIST'
+                BEGIN
+                    SET NOCOUNT ON;
+
+                    SELECT 
+                        @UserBranchId = BranchId,
+                        @UserRole = Role
+                    FROM t_User
+                    WHERE UserId = @UserId;
+
+                    SELECT
+                        t.TransactionId,
+                        t.Type,
+                        t.Amount,
+                        t.Status,
+                        t.IsHighValue,
+                        t.CreatedAt,
+                        t.UpdatedAt,
+                        COUNT(*) OVER() AS TotalCount
+                    FROM t_Transaction t
+                    WHERE
+                        (@AccountId IS NULL OR t.FromAccountId = @AccountId OR t.ToAccountId = @AccountId)
+                        AND (@Type IS NULL OR t.Type = @Type)
+                        AND (@Status IS NULL OR t.Status = @Status)
+                        AND (@IsHighValue IS NULL OR t.IsHighValue = @IsHighValue)
+                        AND (@CreatedFrom IS NULL OR t.CreatedAt >= @CreatedFrom)
+                        AND (@CreatedTo IS NULL OR t.CreatedAt <= @CreatedTo)
+                        AND (@UpdatedFrom IS NULL OR t.UpdatedAt >= @UpdatedFrom)
+                        AND (@UpdatedTo IS NULL OR t.UpdatedAt <= @UpdatedTo)
+                        AND (
+                            @UserRole = @ROLE_ADMIN
+                            OR t.BranchId = @UserBranchId
+                        )
+                    ORDER BY
+                        CASE WHEN @SortBy = 'CreatedAt' AND @SortOrder = 'ASC' THEN t.CreatedAt END ASC,
+                        CASE WHEN @SortBy = 'CreatedAt' AND @SortOrder = 'DESC' THEN t.CreatedAt END DESC,
+
+                        CASE WHEN @SortBy = 'UpdatedAt' AND @SortOrder = 'ASC' THEN t.UpdatedAt END ASC,
+                        CASE WHEN @SortBy = 'UpdatedAt' AND @SortOrder = 'DESC' THEN t.UpdatedAt END DESC,
+
+                        CASE WHEN @SortBy = 'Amount' AND @SortOrder = 'ASC' THEN t.Amount END ASC,
+                        CASE WHEN @SortBy = 'Amount' AND @SortOrder = 'DESC' THEN t.Amount END DESC,
+
+                        CASE WHEN @SortBy = 'Type' AND @SortOrder = 'ASC' THEN t.Type END ASC,
+                        CASE WHEN @SortBy = 'Type' AND @SortOrder = 'DESC' THEN t.Type END DESC,
+
+                        CASE WHEN @SortBy = 'Status' AND @SortOrder = 'ASC' THEN t.Status END ASC,
+                        CASE WHEN @SortBy = 'Status' AND @SortOrder = 'DESC' THEN t.Status END DESC,
+
+                        CASE WHEN @SortBy = 'IsHighValue' AND @SortOrder = 'ASC' THEN t.IsHighValue END ASC,
+                        CASE WHEN @SortBy = 'IsHighValue' AND @SortOrder = 'DESC' THEN t.IsHighValue END DESC
+                    OFFSET @Offset ROWS
+                    FETCH NEXT @Limit ROWS ONLY;
+                    RETURN;
+                END
+            END
+            ";
+
+            migrationBuilder.Sql(sp);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(
-                @"DROP PROCEDURE IF EXISTS [dbo].[usp_CreateTransaction]"
-            );
+            @"IF OBJECT_ID('[dbo].[usp_Transaction]', 'P') IS NOT NULL
+              DROP PROCEDURE [dbo].[usp_Transaction];");
         }
     }
 }

@@ -5,7 +5,7 @@ namespace Account_Track.Services.Interfaces
 {
     public interface IJwtService
     {
-        string GenerateAccessToken(FindUserDto user);
+        string GenerateAccessToken(FindUserDto user,int LoginId);
 
         string GenerateRefreshToken();
 

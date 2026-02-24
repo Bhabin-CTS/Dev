@@ -17,11 +17,12 @@ namespace Account_Track.Services.Implementations
             _config = config;
         }
 
-        public string GenerateAccessToken(FindUserDto user)
+        public string GenerateAccessToken(FindUserDto user,int LoginId)
         {
             var claims = new[]
             {
                 new Claim("UserId", user.UserId.ToString()),
+                new Claim("LoginId", LoginId.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };

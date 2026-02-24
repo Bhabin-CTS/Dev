@@ -32,3 +32,4 @@ namespace Account_Track.Model
         public ICollection <t_AuditLog>? AuditLogs {  get; set; }
     }
 }
+

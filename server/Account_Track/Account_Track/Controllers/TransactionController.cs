@@ -26,8 +26,9 @@ namespace Account_Track.Controllers
             try
             {
                 int userId = int.Parse(User.FindFirst("UserId")!.Value);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
 
-                var data = await _service.CreateTransactionAsync(dto, userId);
+                var data = await _service.CreateTransactionAsync(dto, userId, loginId);
 
                 return StatusCode(201, new ApiResponseDto<CreateTransactionResponseDto>
                 {
