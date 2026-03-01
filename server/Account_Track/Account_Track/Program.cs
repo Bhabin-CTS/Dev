@@ -1,5 +1,6 @@
 using Account_Track.Data;
 using Account_Track.DTOs;
+using Account_Track.Services;
 using Account_Track.Services.Implementations;
 using Account_Track.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -142,7 +143,8 @@ namespace Account_Track
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<IReportService, ReportService>();
-            
+            builder.Services.AddScoped<IAuditLogService, AuditLogServiceSp>();
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend",
