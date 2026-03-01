@@ -24,9 +24,13 @@ namespace Account_Track.Services.Implementations
 
         public async Task<LoginResponseDto> Login(LoginRequestDto dto)
         {
-            var sql = "EXEC USP_GetUserByEmail @Email"; 
+            var sql = @"EXEC usp_Auth
+                        @Action = @Action,
+                        @Email = @Email"; 
+
             var parameters = new[] 
             {
+                new SqlParameter("@Action", "GET_USER_BY_EMAIL"),
                 new SqlParameter("@Email", dto.Email) 
             };
             var users = await _context.Database
@@ -51,7 +55,10 @@ namespace Account_Track.Services.Implementations
             {
                 // Update failed attempts
                 await _context.Database.ExecuteSqlRawAsync(
-                    "EXEC usp_UpdateUserFailedAttempt @UserId",
+                    @"EXEC usp_Auth
+                      @Action = @Action,
+                      @UserId = @UserId",
+                    new SqlParameter("@Action", "FAILED_ATTEMPT"),
                     new SqlParameter("@UserId", user.UserId)
                 );
 
@@ -69,17 +76,14 @@ namespace Account_Track.Services.Implementations
             var refreshDays = Convert.ToDouble(_config["Jwt:RefreshTokenExpiryDays"] ?? "7");
             var refreshExpiry = DateTime.UtcNow.AddDays(refreshDays);
 
-            //// Store refresh token in LoginLog
-            //await _context.Database.ExecuteSqlRawAsync(
-            //    "EXEC usp_InsertLoginLog @UserId, @RefreshToken, @RefreshTokenExpiry",
-            //    new SqlParameter("@UserId", user.UserId),
-            //    new SqlParameter("@RefreshToken", refreshToken),
-            //    new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
-            //);
-
             var loginResult = await _context.Database
                     .SqlQueryRaw<LoginLogResultDto>(
-                        "EXEC usp_InsertLoginLog @UserId, @RefreshToken, @RefreshTokenExpiry",
+                        @"EXEC usp_Auth
+                          @Action = @Action,
+                          @UserId = @UserId,
+                          @RefreshToken = @RefreshToken,
+                          @RefreshTokenExpiry = @RefreshTokenExpiry",
+                        new SqlParameter("@Action", "INSERT_LOGIN"),
                         new SqlParameter("@UserId", user.UserId),
                         new SqlParameter("@RefreshToken", refreshToken),
                         new SqlParameter("@RefreshTokenExpiry", refreshExpiry)
@@ -91,7 +95,10 @@ namespace Account_Track.Services.Implementations
             var accessToken = _jwtService.GenerateAccessToken(user, loginId);
 
             await _context.Database.ExecuteSqlRawAsync(
-                "EXEC usp_ResetUserAttempts @UserId",
+                @"EXEC usp_Auth
+                  @Action = @Action,
+                  @UserId = @UserId",
+                new SqlParameter("@Action", "RESET_ATTEMPTS"),
                 new SqlParameter("@UserId", user.UserId)
             );
 
@@ -107,19 +114,14 @@ namespace Account_Track.Services.Implementations
             var principal =
                 _jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
 
-            //var userId =
-            //    int.Parse(principal.FindFirst("UserId").Value);
-
-            //var sqlUser = "EXEC usp_GetUserById @UserId"; 
-            //var userParams = new[] { 
-            //    new SqlParameter("@UserId", userId) 
-            //}; 
-
             var Email = principal.FindFirst(ClaimTypes.Email)?.Value;
             var loginId = Convert.ToInt32(principal.FindFirst("LoginId")?.Value);
-            var sqlUser = "EXEC USP_GetUserByEmail @Email";
+            var sqlUser = @"EXEC usp_Auth
+                      @Action = @Action,
+                      @Email = @Email";
             var userParams = new[]
             {
+                new SqlParameter("@Action", "GET_USER_BY_EMAIL"),
                 new SqlParameter("@Email", Email)
             };
             var users = await _context.Database
@@ -132,9 +134,13 @@ namespace Account_Track.Services.Implementations
             if (user == null)
                 throw new BusinessException("INVALID_USER","Invalid user");
 
-            var sqlLog = "EXEC usp_GetValidLoginLog @UserId, @RefreshToken"; 
+            var sqlLog = @"EXEC usp_Auth
+                            @Action = @Action,
+                            @UserId = @UserId,
+                            @RefreshToken = @RefreshToken"; 
             var logParams = new[] 
-            { 
+            {
+                new SqlParameter("@Action", "GET_VALID_LOGIN"),
                 new SqlParameter("@UserId", userId), 
                 new SqlParameter("@RefreshToken", dto.RefreshToken) 
             }; 
@@ -148,7 +154,11 @@ namespace Account_Track.Services.Implementations
             {
                 // Try to revoke if expired
                 await _context.Database.ExecuteSqlRawAsync(
-                    "EXEC usp_RevokeExpiredRefreshToken @UserId, @RefreshToken",
+                    @"EXEC usp_Auth
+                      @Action = @Action,
+                      @UserId = @UserId,
+                      @RefreshToken = @RefreshToken",
+                    new SqlParameter("@Action", "REVOKE_EXPIRED"),
                     new SqlParameter("@UserId", userId),
                     new SqlParameter("@RefreshToken", dto.RefreshToken)
                 );
@@ -168,7 +178,10 @@ namespace Account_Track.Services.Implementations
         public async Task<string> Logout(int userId)
         {
             await _context.Database.ExecuteSqlRawAsync(
-                   "EXEC usp_LogoutAllSession @UserId",
+                   @"EXEC usp_Auth
+                    @Action = @Action,
+                    @UserId = @UserId",
+                   new SqlParameter("@Action", "LOGOUT_ALL"),
                    new SqlParameter("@UserId", userId)
                );
             return "Logout Successful";

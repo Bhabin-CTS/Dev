@@ -6,9 +6,9 @@ namespace Account_Track.Services.Interfaces
 {
     public interface IBranchService
     {
-        Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId);
+        Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId, int loginId);
 
-        Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId);
+        Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId, int loginId);
 
         Task<(List<BranchListResponseDto>, PaginationDto)> GetBranchesAsync(GetBranchesRequestDto request);
 

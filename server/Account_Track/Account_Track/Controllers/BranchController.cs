@@ -28,8 +28,8 @@ namespace Account_Track.Controllers
             try
             {
                 int userId = int.Parse(User.FindFirst("UserId")!.Value);
-
-                var data = await _service.CreateBranchAsync(dto, userId);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
+                var data = await _service.CreateBranchAsync(dto, userId, loginId);
 
                 return StatusCode(201, new ApiResponseDto<BranchResponseDto>
                 {
@@ -79,8 +79,8 @@ namespace Account_Track.Controllers
             try
             {
                 int userId = int.Parse(User.FindFirst("UserId")!.Value);
-
-                var data = await _service.UpdateBranchAsync(id, dto, userId);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
+                var data = await _service.UpdateBranchAsync(id, dto, userId, loginId);
 
                 return Ok(new ApiResponseDto<BranchResponseDto>
                 {

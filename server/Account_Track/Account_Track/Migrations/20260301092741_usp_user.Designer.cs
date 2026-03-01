@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260206060353_Branch_usp_BranchCreate")]
-    partial class Branch_usp_BranchCreate
+    [Migration("20260301092741_usp_user")]
+    partial class usp_user
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,7 +34,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Balance")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("BranchId")
@@ -200,7 +199,6 @@ namespace Account_Track.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("beforeState")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("AuditLogId");

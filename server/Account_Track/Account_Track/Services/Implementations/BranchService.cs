@@ -18,19 +18,30 @@ namespace Account_Track.Services.Implementations
             _context = context;
         }
 
-        public async Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId)
+        public async Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId,int loginId)
         {
-            var sql = "EXEC usp_Branch_Create @BranchName,@IFSCCode,@City,@State,@Country,@Pincode,@UserId";
+            var sql = @"EXEC usp_Branch
+                        @Action = @Action,
+                        @BranchName = @BranchName,
+                        @IFSCCode = @IFSCCode,
+                        @City = @City,
+                        @State = @State,
+                        @Country = @Country,
+                        @Pincode = @Pincode,
+                        @UserId = @UserId,
+                        @LoginId = @LoginId";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "CREATE"),
                 new SqlParameter("@BranchName", dto.BranchName),
                 new SqlParameter("@IFSCCode", dto.IFSCCode),
                 new SqlParameter("@City", dto.City),
                 new SqlParameter("@State", dto.State),
                 new SqlParameter("@Country", dto.Country),
                 new SqlParameter("@Pincode", dto.Pincode),
-                new SqlParameter("@UserId", userId)
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@LoginId", loginId)
             };
 
             var result = await _context.Database
@@ -43,12 +54,23 @@ namespace Account_Track.Services.Implementations
             return result.First();
         }
 
-        public async Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId)
+        public async Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId,int loginId)
         {
-            var sql = "EXEC usp_Branch_Update @BranchId,@BranchName,@IFSCCode,@City,@State,@Country,@Pincode,@UserId";
+            var sql = @"EXEC usp_Branch
+                        @Action = @Action,
+                        @BranchId = @BranchId,
+                        @BranchName = @BranchName,
+                        @IFSCCode = @IFSCCode,
+                        @City = @City,
+                        @State = @State,
+                        @Country = @Country,
+                        @Pincode = @Pincode,
+                        @UserId = @UserId,
+                        @LoginId = @LoginId";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "UPDATE"),
                 new SqlParameter("@BranchId", branchId),
                 new SqlParameter("@BranchName", (object?)dto.BranchName ?? DBNull.Value),
                 new SqlParameter("@IFSCCode", (object?)dto.IFSCCode ?? DBNull.Value),
@@ -56,7 +78,8 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@State", (object?)dto.State ?? DBNull.Value),
                 new SqlParameter("@Country", (object?)dto.Country ?? DBNull.Value),
                 new SqlParameter("@Pincode", (object?)dto.Pincode ?? DBNull.Value),
-                new SqlParameter("@UserId", userId)
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@LoginId", loginId)
             };
 
             var result = await _context.Database
@@ -71,13 +94,29 @@ namespace Account_Track.Services.Implementations
 
         public async Task<(List<BranchListResponseDto>, PaginationDto)> GetBranchesAsync(GetBranchesRequestDto request)
         {
-            var sql = @"EXEC usp_GetBranches
-                @BranchId,@BranchName,@IFSCCode,@City,@State,@Country,@Pincode,
-                @SearchText,@CreatedFrom,@CreatedTo,@UpdatedFrom,@UpdatedTo,
-                @SortBy,@SortOrder,@Limit,@Offset";
+
+            var sql = @"EXEC usp_Branch
+                        @Action = @Action,
+                        @BranchId = @BranchId,
+                        @BranchName = @BranchName,
+                        @IFSCCode = @IFSCCode,
+                        @City = @City,
+                        @State = @State,
+                        @Country = @Country,
+                        @Pincode = @Pincode,
+                        @SearchText = @SearchText,
+                        @CreatedFrom = @CreatedFrom,
+                        @CreatedTo = @CreatedTo,
+                        @UpdatedFrom = @UpdatedFrom,
+                        @UpdatedTo = @UpdatedTo,
+                        @SortBy = @SortBy,
+                        @SortOrder = @SortOrder,
+                        @Limit = @Limit,
+                        @Offset = @Offset";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "GET_LIST"),
                 new SqlParameter("@BranchId", (object?)request.BranchId ?? DBNull.Value),
                 new SqlParameter("@BranchName", (object?)request.BranchName ?? DBNull.Value),
                 new SqlParameter("@IFSCCode", (object?)request.IFSCCode ?? DBNull.Value),
@@ -120,12 +159,14 @@ namespace Account_Track.Services.Implementations
 
         public async Task<BranchResponseDto> GetBranchByIdAsync(int branchId)
         {
-            var sql = "EXEC usp_GetBranchById @BranchId";
-
-            var parameter = new SqlParameter("@BranchId", branchId);
-
+            var sql = @"EXEC usp_Branch
+                        @Action = @Action,
+                        @BranchId = @BranchId";
+   
             var result = await _context.Database
-                .SqlQueryRaw<BranchResponseDto>(sql, parameter)
+                .SqlQueryRaw<BranchResponseDto>(sql,
+                    new SqlParameter("@Action", "GET_BY_ID"),
+                    new SqlParameter("@BranchId", branchId))
                 .ToListAsync();
 
             if (!result.Any())

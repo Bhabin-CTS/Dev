@@ -23,10 +23,19 @@ namespace Account_Track.Services.Implementations
         {
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Email);
 
-            var sql = "EXEC usp_CreateUser @Name,@Email,@Role,@BranchId,@PasswordHash,@UserId,@LoginId";
+            var sql = @"EXEC usp_User
+                        @Action = @Action,
+                        @Name = @Name,
+                        @Email = @Email,
+                        @Role = @Role,
+                        @BranchId = @BranchId,
+                        @PasswordHash = @PasswordHash,
+                        @UserId = @UserId,
+                        @LoginId = @LoginId";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "CREATE"),
                 new SqlParameter("@Name", dto.Name),
                 new SqlParameter("@Email", dto.Email),
                 new SqlParameter("@Role", dto.Role),
@@ -43,10 +52,18 @@ namespace Account_Track.Services.Implementations
 
         public async Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserRequestDto dto, int userId, int loginId)
         {
-            var sql = "EXEC usp_UpdateUser @UserId,@Name,@Role,@BranchId,@PerformedBy,@LoginId";
+            var sql = @"EXEC usp_User
+                        @Action = @Action,
+                        @UserId = @UserId,
+                        @Name = @Name,
+                        @Role = @Role,
+                        @BranchId = @BranchId,
+                        @PerformedBy = @PerformedBy,
+                        @LoginId = @LoginId";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "UPDATE"),
                 new SqlParameter("@UserId", id),
                 new SqlParameter("@Name", dto.Name ?? (object)DBNull.Value),
                 new SqlParameter("@Role", dto.Role ?? (object)DBNull.Value),
@@ -62,14 +79,20 @@ namespace Account_Track.Services.Implementations
 
         public async Task<UserResponseDto> UpdateUserStatusAsync(int id, ChangeUserStatusRequestDto dto, int userId,int loginId)
         {
-            var sql = "EXEC usp_UpdateUserStatus @UserId,@Status,@IsLocked,@Reason,@PerformedBy,@LoginId";
+            var sql = @"EXEC usp_User
+                        @Action = @Action,
+                        @UserId = @UserId,
+                        @Status = @Status,
+                        @IsLocked = @IsLocked,
+                        @PerformedBy = @PerformedBy,
+                        @LoginId = @LoginId";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "UPDATE_STATUS"),
                 new SqlParameter("@UserId", id),
                 new SqlParameter("@Status", dto.Status ?? (object)DBNull.Value),
                 new SqlParameter("@IsLocked", dto.IsLocked ?? (object)DBNull.Value),
-                new SqlParameter("@Reason", dto.Reason ?? (object)DBNull.Value),
                 new SqlParameter("@PerformedBy", userId),
                 new SqlParameter("@LoginId", loginId)
             };
@@ -86,22 +109,23 @@ namespace Account_Track.Services.Implementations
                     "UpdatedFrom cannot be greater than UpdatedTo");
 
             var sql = @"EXEC usp_GetUsers 
-                        @BranchId,
-                        @Role,
-                        @Status,
-                        @IsLocked,
-                        @Search,
-                        @CreatedFrom,
-                        @CreatedTo,
-                        @UpdatedFrom,
-                        @UpdatedTo,
-                        @SortBy,
-                        @SortOrder,
-                        @Limit,
-                        @Offset";
+                        @BranchId=@BranchId,
+                        @Role=@Role,
+                        @Status=@Status,
+                        @IsLocked=@IsLocked,
+                        @Search=@Search,
+                        @CreatedFrom=@CreatedFrom,
+                        @CreatedTo=@CreatedTo,
+                        @UpdatedFrom=@UpdatedFrom,
+                        @UpdatedTo=@UpdatedTo,
+                        @SortBy=@SortBy,
+                        @SortOrder=@SortOrder,
+                        @Limit=@Limit,
+                        @Offset=@Offset";
 
-                    var parameters = new[]
-                    {
+            var parameters = new[]
+            {
+                new SqlParameter("@Action", "GET_LIST"),
                 new SqlParameter("@BranchId", dto.BranchId ?? (object)DBNull.Value),
                 new SqlParameter("@Role", dto.Role ?? (object)DBNull.Value),
                 new SqlParameter("@Status", dto.Status ?? (object)DBNull.Value),
@@ -151,9 +175,14 @@ namespace Account_Track.Services.Implementations
 
         public async Task<UserResponseDto> GetUserByIdAsync(int userId)
         {
-            var sql = "EXEC usp_GetUserById @UserId";
+            var sql = @"EXEC usp_User
+                        @Action = @Action,
+                        @UserId = @UserId";
 
-            var param = new[] { new SqlParameter("@UserId", userId) };
+            var param = new[] {
+                new SqlParameter("@Action", "GET_BY_ID"),
+                new SqlParameter("@UserId", userId) 
+            };
 
             var result = await _context.Database
                 .SqlQueryRaw<UserResponseDto>(sql, param)
@@ -168,10 +197,13 @@ namespace Account_Track.Services.Implementations
         public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId,int loginId)
         {
             // 1. Call SP to get current hash
-            var sqlGet = "EXEC usp_GetUserPasswordHash @UserId";
+            var sqlGet = @"EXEC usp_User
+                           @Action = @Action,
+                           @UserId = @UserId";
 
             var userHash = (await _context.Database
                 .SqlQueryRaw<string>(sqlGet,
+                    new SqlParameter("@Action", "GET_PASSWORD_HASH"),
                     new SqlParameter("@UserId", userId))
                 .ToListAsync())
                 .FirstOrDefault();
@@ -186,10 +218,14 @@ namespace Account_Track.Services.Implementations
 
             var newHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 
-            var sqlUpdate = "EXEC usp_ChangePassword @UserId,@PasswordHash,@LoginId";
-
+            var sqlUpdate = @"EXEC usp_User
+                              @Action = @Action,
+                              @UserId = @UserId,
+                              @PasswordHash = @PasswordHash,
+                              @LoginId = @LoginId";
             var parameters = new[]
             {
+                new SqlParameter("@Action", "CHANGE_PASSWORD"),
                 new SqlParameter("@UserId", userId),
                 new SqlParameter("@PasswordHash", newHash),
                 new SqlParameter("@LoginId", loginId)
