@@ -13,10 +13,21 @@ namespace Account_Track.Migrations
             var sp = @"
             CREATE OR ALTER PROCEDURE [dbo].[usp_ChangePassword]
                 @UserId INT,
-                @PasswordHash NVARCHAR(200)
+                @PasswordHash NVARCHAR(200),
+                @LoginId INT
             AS
             BEGIN
                 SET NOCOUNT ON;
+                -------------------------------------------------------
+                -- CAPTURE BEFORE STATE FOR AUDIT
+                -------------------------------------------------------
+                DECLARE @UserBeforeState NVARCHAR(MAX);
+                SELECT @UserBeforeState = (
+                    SELECT UserId, Name, Email, Role, BranchId, Status, IsLocked, CreatedAt, UpdatedAt
+                    FROM t_User
+                    WHERE UserId = @UserId
+                    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+                );
 
                 UPDATE t_User
                 SET
@@ -26,6 +37,38 @@ namespace Account_Track.Migrations
 
                 IF @@ROWCOUNT = 0
                     THROW 50002, 'USER_NOT_FOUND', 1;
+
+                -------------------------------------------------------
+                -- AUDIT: DO NOT STORE PASSWORD HASH
+                -------------------------------------------------------
+                DECLARE @AfterInfo NVARCHAR(MAX) = (
+                    SELECT UserId, Name, Email, Role, BranchId, Status, IsLocked, CreatedAt, UpdatedAt
+                    FROM t_User
+                    WHERE UserId = @UserId
+                    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+                );
+                INSERT INTO t_AuditLog
+                (
+                    UserId,
+                    LoginId,
+                    EntityType,
+                    EntityId,
+                    Action,
+                    beforeState,
+                    afterState,
+                    CreatedAt
+                )
+                VALUES
+                (
+                    @UserId,
+                    @LoginId,
+                    'User',
+                    @UserId,
+                    'CHANGE_PASSWORD',
+                    @UserBeforeState,
+                    @AfterInfo,
+                    GETUTCDATE()
+                );
             END";
 
             migrationBuilder.Sql(sp);

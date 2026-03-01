@@ -19,11 +19,11 @@ namespace Account_Track.Services.Implementations
             _context = context;
         }
 
-        public async Task<UserResponseDto> CreateUserAsync(CreateUserRequestDto dto, int userId)
+        public async Task<UserResponseDto> CreateUserAsync(CreateUserRequestDto dto, int userId,int loginId)
         {
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Email);
 
-            var sql = "EXEC usp_CreateUser @Name,@Email,@Role,@BranchId,@PasswordHash,@UserId";
+            var sql = "EXEC usp_CreateUser @Name,@Email,@Role,@BranchId,@PasswordHash,@UserId,@LoginId";
 
             var parameters = new[]
             {
@@ -32,7 +32,8 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@Role", dto.Role),
                 new SqlParameter("@BranchId", dto.BranchId),
                 new SqlParameter("@PasswordHash", hashedPassword),
-                new SqlParameter("@UserId", userId)
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@LoginId", loginId)
             };
 
             return (await _context.Database
@@ -40,9 +41,9 @@ namespace Account_Track.Services.Implementations
                 .ToListAsync()).First();
         }
 
-        public async Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserRequestDto dto, int userId)
+        public async Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserRequestDto dto, int userId, int loginId)
         {
-            var sql = "EXEC usp_UpdateUser @UserId,@Name,@Role,@BranchId,@PerformedBy";
+            var sql = "EXEC usp_UpdateUser @UserId,@Name,@Role,@BranchId,@PerformedBy,@LoginId";
 
             var parameters = new[]
             {
@@ -50,7 +51,8 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@Name", dto.Name ?? (object)DBNull.Value),
                 new SqlParameter("@Role", dto.Role ?? (object)DBNull.Value),
                 new SqlParameter("@BranchId", dto.BranchId ?? (object)DBNull.Value),
-                new SqlParameter("@PerformedBy", userId)
+                new SqlParameter("@PerformedBy", userId),
+                new SqlParameter("@LoginId", loginId)
             };
 
             return (await _context.Database
@@ -58,9 +60,9 @@ namespace Account_Track.Services.Implementations
                 .ToListAsync()).First();
         }
 
-        public async Task<UserResponseDto> UpdateUserStatusAsync(int id, ChangeUserStatusRequestDto dto, int userId)
+        public async Task<UserResponseDto> UpdateUserStatusAsync(int id, ChangeUserStatusRequestDto dto, int userId,int loginId)
         {
-            var sql = "EXEC usp_UpdateUserStatus @UserId,@Status,@IsLocked,@Reason,@PerformedBy";
+            var sql = "EXEC usp_UpdateUserStatus @UserId,@Status,@IsLocked,@Reason,@PerformedBy,@LoginId";
 
             var parameters = new[]
             {
@@ -68,7 +70,8 @@ namespace Account_Track.Services.Implementations
                 new SqlParameter("@Status", dto.Status ?? (object)DBNull.Value),
                 new SqlParameter("@IsLocked", dto.IsLocked ?? (object)DBNull.Value),
                 new SqlParameter("@Reason", dto.Reason ?? (object)DBNull.Value),
-                new SqlParameter("@PerformedBy", userId)
+                new SqlParameter("@PerformedBy", userId),
+                new SqlParameter("@LoginId", loginId)
             };
 
             return (await _context.Database
@@ -162,7 +165,7 @@ namespace Account_Track.Services.Implementations
             return result.First();
         }
 
-        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId)
+        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId,int loginId)
         {
             // 1. Call SP to get current hash
             var sqlGet = "EXEC usp_GetUserPasswordHash @UserId";
@@ -183,12 +186,13 @@ namespace Account_Track.Services.Implementations
 
             var newHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 
-            var sqlUpdate = "EXEC usp_ChangePassword @UserId,@PasswordHash";
+            var sqlUpdate = "EXEC usp_ChangePassword @UserId,@PasswordHash,@LoginId";
 
             var parameters = new[]
             {
                 new SqlParameter("@UserId", userId),
-                new SqlParameter("@PasswordHash", newHash)
+                new SqlParameter("@PasswordHash", newHash),
+                new SqlParameter("@LoginId", loginId)
             };
 
             await _context.Database.ExecuteSqlRawAsync(sqlUpdate, parameters);

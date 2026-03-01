@@ -17,7 +17,8 @@ namespace Account_Track.Migrations
             @Role INT,
             @BranchId INT,
             @PasswordHash NVARCHAR(200),
-            @UserId INT   -- user performing the action
+            @UserId INT,
+            @LoginId INT
         AS
         BEGIN
             SET NOCOUNT ON;
@@ -91,14 +92,14 @@ namespace Account_Track.Migrations
             -------------------------------------------------------
             -- 2. IF NEW USER IS OFFICER → NOTIFY MANAGER
             -------------------------------------------------------
-            IF @Role = 1   -- Officer
+            IF @Role = 1
             BEGIN
                 DECLARE @ManagerId INT;
 
                 SELECT TOP 1 @ManagerId = UserId
                 FROM t_User
                 WHERE BranchId = @BranchId
-                  AND Role = 2;   -- Manager
+                  AND Role = 2;
 
                 IF @ManagerId IS NOT NULL
                 BEGIN
@@ -124,7 +125,7 @@ namespace Account_Track.Migrations
             -------------------------------------------------------
             -- 3. IF NEW USER IS MANAGER → NOTIFY ALL BRANCH USERS
             -------------------------------------------------------
-            IF @Role = 2   -- Manager
+            IF @Role = 2
             BEGIN
                 INSERT INTO t_Notification
                 (
@@ -144,6 +145,40 @@ namespace Account_Track.Migrations
                 WHERE BranchId = @BranchId
                   AND UserId <> @NewUserId;
             END
+
+            -------------------------------------------------------
+            -- AUDIT LOG (CREATE)
+            -------------------------------------------------------
+            DECLARE @UserAfterState NVARCHAR(MAX);
+            SELECT @UserAfterState = (
+                SELECT UserId, Name, Email, Role, BranchId, Status, IsLocked, CreatedAt, UpdatedAt
+                FROM t_User
+                WHERE UserId = @NewUserId
+                FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+            );
+
+            INSERT INTO t_AuditLog
+            (
+                UserId,
+                LoginId,
+                EntityType,
+                EntityId,
+                Action,
+                beforeState,
+                afterState,
+                CreatedAt
+            )
+            VALUES
+            (
+                @UserId,
+                @LoginId,
+                'User',
+                @NewUserId,
+                'CREATE',
+                NULL,
+                @UserAfterState,
+                GETUTCDATE()
+            );
 
             -------------------------------------------------------
             -- RETURN CREATED USER

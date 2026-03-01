@@ -28,7 +28,8 @@ namespace Account_Track.Controllers
             try
             {
                 int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
-                var data = await _service.CreateUserAsync(dto, CurrentUserId);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
+                var data = await _service.CreateUserAsync(dto, CurrentUserId, loginId);
 
                 return StatusCode(201, new ApiResponseDto<UserResponseDto>
                 {
@@ -78,7 +79,8 @@ namespace Account_Track.Controllers
             try
             {
                 int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
-                var data = await _service.UpdateUserAsync(id, dto, CurrentUserId);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
+                var data = await _service.UpdateUserAsync(id, dto, CurrentUserId, loginId);
 
                 return Ok(new ApiResponseDto<UserResponseDto>
                 {
@@ -128,7 +130,8 @@ namespace Account_Track.Controllers
             try
             {
                 int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
-                var data = await _service.UpdateUserStatusAsync(id, dto, CurrentUserId);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
+                var data = await _service.UpdateUserStatusAsync(id, dto, CurrentUserId, loginId);
 
                 return Ok(new ApiResponseDto<UserResponseDto>
                 {
@@ -259,7 +262,8 @@ namespace Account_Track.Controllers
             try
             {
                 int CurrentUserId = int.Parse(User.FindFirst("UserId")!.Value);
-                await _service.ChangePasswordAsync(dto, CurrentUserId);
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
+                await _service.ChangePasswordAsync(dto, CurrentUserId, loginId);
 
                 return Ok(new ApiResponseDto<bool>
                 {
