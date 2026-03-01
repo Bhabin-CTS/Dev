@@ -20,15 +20,17 @@ public class ApprovalService : IApprovalService
     /// Update an approval decision.
     /// Throws BusinessException when SP reports failure or returns no result.
     /// </summary>
-    public async Task UpdateDecisionAsync(int approvalId, int reviewerId, int decision, string? comments)
+    public async Task UpdateDecisionAsync(int approvalId, int reviewerId, int decision, string? comments,int loginId)
     {
         if (approvalId <= 0)
             throw new BusinessException("INVALID_ID", "ApprovalId must be a positive integer");
-
-        var sql = "EXEC usp_UpdateApprovalDecision @ApprovalID, @ReviewerID, @Decision, @Comments";
+        
+        var sql = "EXEC usp_Approval @Action=@Action,@ApprovalID = @ApprovalID, @ReviewerID = @ReviewerID, @Decision=@Decision, @Comments =@Comments,@LoginId=@LoginId";
 
         var parameters = new[]
         {
+            new SqlParameter("@LoginId", loginId),
+            new SqlParameter("@Action","UPDATE"),
             new SqlParameter("@ApprovalID", approvalId),
             new SqlParameter("@ReviewerID", reviewerId),
             new SqlParameter("@Decision", decision),
@@ -142,23 +144,25 @@ public class ApprovalService : IApprovalService
             throw new BusinessException("INVALID_AMOUNT_RANGE", "MinAmount cannot be greater than MaxAmount");
 
         var sql = @"
-            EXEC usp_GetApprovals
-                @AccountId,
-                @ReviewerId,
-                @Decision,
-                @Type,
-                @MinAmount,
-                @MaxAmount,
-                @FromDate,
-                @ToDate,
-                @Limit,
-                @Offset,
-                @SortBy,
-                @SortDir,
-                @UserId";
+            EXEC usp_Approval
+                @Action =@Action,
+                @AccountId=@AccountId,
+                @ReviewerId =@ReviewerId,
+                @Decision =@Decision,
+                @Type =@Type,
+                @MinAmount =@MinAmount,
+                @MaxAmount =@MaxAmount,
+                @FromDate =@FromDate,
+                @ToDate =@ToDate,
+                @Limit =@Limit,
+                @Offset =@Offset,
+                @SortBy =@SortBy,
+                @SortDir =@SortDir,
+                @UserId = @UserId";
 
         var parameters = new[]
         {
+            new SqlParameter("@Action","LIST"),
             new SqlParameter("@AccountId",  (object?)request.AccountId ?? DBNull.Value),
             new SqlParameter("@ReviewerId", (object?)request.ReviewerId ?? DBNull.Value),
             new SqlParameter("@Decision",   (object?)request.Decision ?? DBNull.Value),

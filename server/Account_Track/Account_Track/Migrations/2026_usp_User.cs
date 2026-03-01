@@ -5,7 +5,7 @@
 namespace Account_Track.Migrations
 {
     /// <inheritdoc />
-    public partial class usp_user : Migration
+    public partial class usp_User : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

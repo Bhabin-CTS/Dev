@@ -401,6 +401,8 @@ namespace Account_Track.Migrations
                     END
                 END
                 ";
+            migrationBuilder.Sql(sp);
+
         }
 
         /// <inheritdoc />

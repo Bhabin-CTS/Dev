@@ -4,10 +4,8 @@
 
 namespace Account_Track.Migrations
 {
-    /// <inheritdoc />
     public partial class usp_Branch : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             var sp = @"
@@ -401,7 +399,6 @@ namespace Account_Track.Migrations
             migrationBuilder.Sql(sp);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP PROCEDURE IF EXISTS [dbo].[usp_Branch]");

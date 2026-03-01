@@ -21,7 +21,6 @@ namespace Account_Track.Services.Implementations
             if (dto.PeriodType != "MONTH" && dto.PeriodType != "YEAR")
                 throw new BusinessException("INVALID_PERIOD", "PeriodType must be MONTH or YEAR");
 
-            //var sql = "EXEC usp_OverallSummary @PeriodType, @BranchId";
             var sql = @"EXEC usp_Report
                         @Action = @Action,
                         @PeriodType = @PeriodType,
@@ -43,13 +42,12 @@ namespace Account_Track.Services.Implementations
             return result;
         }
 
-        public async Task<List<TransactionTrendResponseDto>>GetOverallTransactionTrendAsync(TransactionTrendRequestDto dto)
+        public async Task<List<TransactionTrendResponseDto>> GetOverallTransactionTrendAsync(TransactionTrendRequestDto dto)
         {
             if (dto.StartDate > dto.EndDate)
                 throw new BusinessException("INVALID_DATE_RANGE",
                     "StartDate cannot be greater than EndDate");
 
-            //var sql = "EXEC usp_OverallTransactionTrend @StartDate, @EndDate, @BranchId";
             var sql = @"EXEC usp_Report
                         @Action = @Action,
                         @StartDate = @StartDate,
@@ -71,7 +69,7 @@ namespace Account_Track.Services.Implementations
             return result;
         }
 
-        public async Task<List<TxnTypeBreakdownResponseDto>>GetOverallTxnTypeBreakdownAsync(TxnTypeBreakdownRequestDto dto)
+        public async Task<List<TxnTypeBreakdownResponseDto>> GetOverallTxnTypeBreakdownAsync(TxnTypeBreakdownRequestDto dto)
         {
             if (dto.StartDate > dto.EndDate)
                 throw new BusinessException("INVALID_DATE_RANGE",
@@ -83,8 +81,6 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_PERIOD",
                     "PeriodType must be WEEK, MONTH, or YEAR");
 
-            //var sql = @"EXEC usp_OverallTxnTypeBreakdown 
-            //    @StartDate, @EndDate, @PeriodType, @BranchId";
             var sql = @"EXEC usp_Report
                         @Action = @Action,
                         @StartDate = @StartDate,
@@ -108,7 +104,7 @@ namespace Account_Track.Services.Implementations
             return result;
         }
 
-        public async Task<List<AccountGrowthResponseDto>>GetOverallAccountGrowthAsync(AccountGrowthRequestDto dto)
+        public async Task<List<AccountGrowthResponseDto>> GetOverallAccountGrowthAsync(AccountGrowthRequestDto dto)
         {
             if (dto.StartDate > dto.EndDate)
                 throw new BusinessException("INVALID_DATE_RANGE",
@@ -120,8 +116,6 @@ namespace Account_Track.Services.Implementations
                 throw new BusinessException("INVALID_PERIOD",
                     "PeriodType must be WEEK, MONTH, or YEAR");
 
-            //var sql = @"EXEC usp_OverallAccountGrowth 
-            //    @PeriodType, @StartDate, @EndDate, @BranchId";
             var sql = @"EXEC usp_Report
                         @Action = @Action,
                         @PeriodType = @PeriodType,
@@ -144,14 +138,12 @@ namespace Account_Track.Services.Implementations
             return result;
         }
 
-        public async Task<List<HighValueStatusResponseDto>>GetOverallHighValueStatusAsync(HighValueStatusRequestDto dto)
+        public async Task<List<HighValueStatusResponseDto>> GetOverallHighValueStatusAsync(HighValueStatusRequestDto dto)
         {
             if (dto.StartDate > dto.EndDate)
                 throw new BusinessException("INVALID_DATE_RANGE",
                     "StartDate cannot be greater than EndDate");
 
-            //var sql = @"EXEC usp_OverallHighValueStatus 
-            //    @StartDate, @EndDate, @BranchId";
             var sql = @"EXEC usp_Report
                         @Action = @Action,
                         @StartDate = @StartDate,
@@ -172,7 +164,7 @@ namespace Account_Track.Services.Implementations
             return result;
         }
 
-        public async Task<List<TopBranchesResponseDto>>GetOverallTopBranchesAsync(TopBranchesRequestDto dto)
+        public async Task<List<TopBranchesResponseDto>> GetOverallTopBranchesAsync(TopBranchesRequestDto dto)
         {
             var allowedPeriods = new[] { "WEEK", "MONTH", "YEAR", "OVERALL", "CUSTOM" };
             var allowedRankBy = new[] { "AMOUNT", "COUNT" };
@@ -196,8 +188,6 @@ namespace Account_Track.Services.Implementations
                         "StartDate cannot be greater than EndDate");
             }
 
-            //var sql = @"EXEC usp_OverallTopBranches
-            //    @PeriodType, @RankBy, @StartDate, @EndDate";
             var sql = @"EXEC usp_Report
                         @Action = @Action,
                         @PeriodType = @PeriodType,

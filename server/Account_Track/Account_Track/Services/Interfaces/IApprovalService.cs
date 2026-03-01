@@ -2,7 +2,7 @@
 using Account_Track.DTOs.ApprovalDto;
 public interface IApprovalService
 {
-    Task UpdateDecisionAsync(int approvalId, int reviewerId, int decision, string? comments);
+    Task UpdateDecisionAsync(int approvalId, int reviewerId, int decision, string? comments,int loginId);
     Task<List<PendingApprovalDto>> GetPendingApprovalsAsync(int reviewerId);
     Task<List<ApprovalAuditDto>> GetApprovalAuditAsync(int transactionId);
     Task<(List<ApprovalDecisionDto> Data, PaginationDto Pagination)> GetApprovalsAsync(GetApprovalsRequestDto request, int userId);

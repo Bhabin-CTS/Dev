@@ -18,7 +18,7 @@ namespace Account_Track.Services.Implementations
             _context = context;
         }
 
-        public async Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId,int loginId)
+        public async Task<BranchResponseDto> CreateBranchAsync(CreateBranchRequestDto dto, int userId, int loginId)
         {
             var sql = @"EXEC usp_Branch
                         @Action = @Action,
@@ -54,7 +54,7 @@ namespace Account_Track.Services.Implementations
             return result.First();
         }
 
-        public async Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId,int loginId)
+        public async Task<BranchResponseDto> UpdateBranchAsync(int branchId, UpdateBranchRequestDto dto, int userId, int loginId)
         {
             var sql = @"EXEC usp_Branch
                         @Action = @Action,
@@ -162,7 +162,7 @@ namespace Account_Track.Services.Implementations
             var sql = @"EXEC usp_Branch
                         @Action = @Action,
                         @BranchId = @BranchId";
-   
+
             var result = await _context.Database
                 .SqlQueryRaw<BranchResponseDto>(sql,
                     new SqlParameter("@Action", "GET_BY_ID"),

@@ -29,8 +29,9 @@ namespace Account_Track.Controllers
             try
             {
                 int userId = int.Parse(User.FindFirst("UserId")!.Value);
+                int logId = int.Parse(User.FindFirst("LoginId")!.Value);
 
-                var data = await _service.CreateAccountAsync(dto, userId);
+                var data = await _service.CreateAccountAsync(dto, userId, logId);
 
                 return StatusCode(201, new ApiResponseDto<CreateAccountResponseDto>
                 {
@@ -199,8 +200,10 @@ namespace Account_Track.Controllers
             try
             {
                 int userId = int.Parse(User.FindFirst("UserId")!.Value);
+                int logId = int.Parse(User.FindFirst("LoginId")!.Value);
 
-                var data = await _service.UpdateAccountAsync(id, dto, userId);
+
+                var data = await _service.UpdateAccountAsync(id, dto, userId, logId);
 
                 return Ok(new ApiResponseDto<AccountDetailResponseDto>
                 {

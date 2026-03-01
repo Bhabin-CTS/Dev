@@ -301,7 +301,7 @@ namespace Account_Track.Controllers
         {
             try
             {
-                
+
                 await _service.FirstResetAsync(dto);
 
                 return Ok(new ApiResponseDto<bool>

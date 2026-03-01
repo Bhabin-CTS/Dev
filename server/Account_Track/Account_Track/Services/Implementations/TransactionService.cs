@@ -6,7 +6,6 @@ using Account_Track.Utils;
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Account_Track.Services.Implementations
 {
@@ -19,7 +18,7 @@ namespace Account_Track.Services.Implementations
             _context = db;
         }
 
-        public async Task<CreateTransactionResponseDto> CreateTransactionAsync(CreateTransactionRequestDto dto, int userId,int loginId)
+        public async Task<CreateTransactionResponseDto> CreateTransactionAsync(CreateTransactionRequestDto dto, int userId, int loginId)
         {
             // ===== VALIDATION =====
             if (dto.Type == TransactionType.Transfer && dto.FromAccountId == dto.ToAccountId)
@@ -39,7 +38,7 @@ namespace Account_Track.Services.Implementations
                     "ToAccountId should be null for deposit and withdrawal transactions");
 
             // ===== CALL STORED PROCEDURE =====
-            //var sql = "EXEC usp_Transaction @Action,@CreatedByUserId,@LoginId,@FromAccountId,@ToAccountId,@Type,@Amount,@Remarks";
+
             var sql = @"
                     EXEC usp_Transaction 
                         @Action=@Action,
@@ -50,16 +49,16 @@ namespace Account_Track.Services.Implementations
                         @Type=@Type,
                         @Amount=@Amount,
                         @Remarks=@Remarks";
-            var parameters = new[] 
+            var parameters = new[]
             {
                 new SqlParameter("@Action", "CREATE"),
-                new SqlParameter("@CreatedByUserId", userId), 
+                new SqlParameter("@CreatedByUserId", userId),
                 new SqlParameter("@LoginId", loginId),
-                new SqlParameter("@FromAccountId", dto.FromAccountId), 
-                new SqlParameter("@ToAccountId", dto.ToAccountId ?? (object)DBNull.Value), 
-                new SqlParameter("@Type", dto.Type), 
-                new SqlParameter("@Amount", dto.Amount), 
-                new SqlParameter("@Remarks", dto.Remarks ?? (object)DBNull.Value) 
+                new SqlParameter("@FromAccountId", dto.FromAccountId),
+                new SqlParameter("@ToAccountId", dto.ToAccountId ?? (object)DBNull.Value),
+                new SqlParameter("@Type", dto.Type),
+                new SqlParameter("@Amount", dto.Amount),
+                new SqlParameter("@Remarks", dto.Remarks ?? (object)DBNull.Value)
             };
             var result = (await _context.Database
                 .SqlQueryRaw<CreateTnxSpResult>(sql, parameters)
@@ -91,7 +90,6 @@ namespace Account_Track.Services.Implementations
             if (request.UpdatedFrom > request.UpdatedTo)
                 throw new BusinessException("INVALID_DATE_RANGE", "UpdatedFrom cannot be greater than UpdatedTo");
 
-            //var sql = @"EXEC usp_Transaction @Action,@AccountId, @Type, @Status, @IsHighValue, @CreatedFrom, @CreatedTo, @UpdatedFrom, @UpdatedTo, @SortBy, @SortOrder, @Limit, @Offset, @UserId";
             var sql = @"
                 EXEC usp_Transaction
                     @Action = @Action,
@@ -111,24 +109,24 @@ namespace Account_Track.Services.Implementations
             var parameters = new[]
             {
                 new SqlParameter("@Action", "LIST"),
-                new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value), 
-                new SqlParameter("@Type", request.Type ?? (object)DBNull.Value), 
-                new SqlParameter("@Status", request.Status ?? (object)DBNull.Value), 
-                new SqlParameter("@IsHighValue", request.IsHighValue ?? (object)DBNull.Value), 
-                new SqlParameter("@CreatedFrom", request.CreatedFrom ?? (object)DBNull.Value), 
-                new SqlParameter("@CreatedTo", request.CreatedTo ?? (object)DBNull.Value), 
-                new SqlParameter("@UpdatedFrom", request.UpdatedFrom ?? (object)DBNull.Value), 
-                new SqlParameter("@UpdatedTo", request.UpdatedTo ?? (object)DBNull.Value), 
-                new SqlParameter("@SortBy", request.SortBy ?? "CreatedAt"), 
-                new SqlParameter("@SortOrder", request.SortOrder ?? "DESC"), 
-                new SqlParameter("@Limit", request.Limit), 
-                new SqlParameter("@Offset", request.Offset), 
+                new SqlParameter("@AccountId", request.AccountId ?? (object)DBNull.Value),
+                new SqlParameter("@Type", request.Type ?? (object)DBNull.Value),
+                new SqlParameter("@Status", request.Status ?? (object)DBNull.Value),
+                new SqlParameter("@IsHighValue", request.IsHighValue ?? (object)DBNull.Value),
+                new SqlParameter("@CreatedFrom", request.CreatedFrom ?? (object)DBNull.Value),
+                new SqlParameter("@CreatedTo", request.CreatedTo ?? (object)DBNull.Value),
+                new SqlParameter("@UpdatedFrom", request.UpdatedFrom ?? (object)DBNull.Value),
+                new SqlParameter("@UpdatedTo", request.UpdatedTo ?? (object)DBNull.Value),
+                new SqlParameter("@SortBy", request.SortBy ?? "CreatedAt"),
+                new SqlParameter("@SortOrder", request.SortOrder ?? "DESC"),
+                new SqlParameter("@Limit", request.Limit),
+                new SqlParameter("@Offset", request.Offset),
                 new SqlParameter("@UserId", userId)
             };
 
             var spresult = await _context.Database
-                .SqlQueryRaw<TransactionListSpResultDto>(sql, parameters)   
-                .ToListAsync(); 
+                .SqlQueryRaw<TransactionListSpResultDto>(sql, parameters)
+                .ToListAsync();
 
             int total = spresult.FirstOrDefault()?.TotalCount ?? 0;
             var data = spresult.Select(x => new TransactionListResponseDto
@@ -159,11 +157,11 @@ namespace Account_Track.Services.Implementations
                     @Action = @Action,
                     @UserId = @UserId,
                     @TransactionId = @TransactionId";
-            var parameters = new[] 
+            var parameters = new[]
             {
                 new SqlParameter("@Action", "GET_BY_ID"),
                 new SqlParameter("@TransactionId", transactionId),
-                new SqlParameter("@UserId", userId) 
+                new SqlParameter("@UserId", userId)
             };
             var list = await _context.Database
                 .SqlQueryRaw<TransactionDetailResponseDto>(sql, parameters)

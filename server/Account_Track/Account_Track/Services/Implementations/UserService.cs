@@ -19,7 +19,7 @@ namespace Account_Track.Services.Implementations
             _context = context;
         }
 
-        public async Task<UserResponseDto> CreateUserAsync(CreateUserRequestDto dto, int userId,int loginId)
+        public async Task<UserResponseDto> CreateUserAsync(CreateUserRequestDto dto, int userId, int loginId)
         {
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.Email);
 
@@ -77,7 +77,7 @@ namespace Account_Track.Services.Implementations
                 .ToListAsync()).First();
         }
 
-        public async Task<UserResponseDto> UpdateUserStatusAsync(int id, ChangeUserStatusRequestDto dto, int userId,int loginId)
+        public async Task<UserResponseDto> UpdateUserStatusAsync(int id, ChangeUserStatusRequestDto dto, int userId, int loginId)
         {
             var sql = @"EXEC usp_User
                         @Action = @Action,
@@ -181,7 +181,7 @@ namespace Account_Track.Services.Implementations
 
             var param = new[] {
                 new SqlParameter("@Action", "GET_BY_ID"),
-                new SqlParameter("@UserId", userId) 
+                new SqlParameter("@UserId", userId)
             };
 
             var result = await _context.Database
@@ -194,7 +194,7 @@ namespace Account_Track.Services.Implementations
             return result.First();
         }
 
-        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId,int loginId)
+        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, int userId, int loginId)
         {
             // 1. Call SP to get current hash
             var sqlGet = @"EXEC usp_User
@@ -209,12 +209,12 @@ namespace Account_Track.Services.Implementations
                 .FirstOrDefault();
 
             if (userHash == null)
-                throw new BusinessException("USER_NOT_FOUND","User not found.");
+                throw new BusinessException("USER_NOT_FOUND", "User not found.");
 
             bool isValid = BCrypt.Net.BCrypt.Verify(dto.OldPassword, userHash);
 
             if (!isValid)
-                throw new BusinessException("OLD_PASSWORD_INVALID","Your Old password is Wrong enter the correct one");
+                throw new BusinessException("OLD_PASSWORD_INVALID", "Your Old password is Wrong enter the correct one");
 
             var newHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 

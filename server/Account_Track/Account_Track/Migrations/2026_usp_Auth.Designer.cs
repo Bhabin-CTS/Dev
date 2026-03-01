@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Account_Track.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260301122428_usp_Auth")]
+    [Migration("20260226103527_usp_Auth")]
     partial class usp_Auth
     {
         /// <inheritdoc />

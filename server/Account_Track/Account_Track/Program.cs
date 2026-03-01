@@ -145,6 +145,9 @@ namespace Account_Track
             builder.Services.AddScoped<IReportService, ReportService>();
             builder.Services.AddScoped<IAuditLogService, AuditLogServiceSp>();
 
+            builder.Services.AddControllers();
+
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend",

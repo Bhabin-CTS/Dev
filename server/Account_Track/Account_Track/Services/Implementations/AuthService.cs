@@ -26,12 +26,12 @@ namespace Account_Track.Services.Implementations
         {
             var sql = @"EXEC usp_Auth
                         @Action = @Action,
-                        @Email = @Email"; 
+                        @Email = @Email";
 
-            var parameters = new[] 
+            var parameters = new[]
             {
                 new SqlParameter("@Action", "GET_USER_BY_EMAIL"),
-                new SqlParameter("@Email", dto.Email) 
+                new SqlParameter("@Email", dto.Email)
             };
             var users = await _context.Database
                 .SqlQueryRaw<FindUserDto>(sql, parameters)
@@ -40,7 +40,7 @@ namespace Account_Track.Services.Implementations
             var user = users.FirstOrDefault();
 
             if (user == null)
-                throw new BusinessException("USER_NOT_FOUND","User not found");
+                throw new BusinessException("USER_NOT_FOUND", "User not found");
 
             if (user.UpdatedAt == null)
             {
@@ -49,7 +49,7 @@ namespace Account_Track.Services.Implementations
 
             //CHECK IF ACCOUNT LOCKED
             if (user.IsLocked)
-                throw new BusinessException("ACCOUNT_LOCKED","User account is locked due to multiple failed attempts");
+                throw new BusinessException("ACCOUNT_LOCKED", "User account is locked due to multiple failed attempts");
 
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             {
@@ -62,15 +62,15 @@ namespace Account_Track.Services.Implementations
                     new SqlParameter("@UserId", user.UserId)
                 );
 
-                throw new BusinessException("INVALID_CREDENTIALS","Invalid credentials");
+                throw new BusinessException("INVALID_CREDENTIALS", "Invalid credentials");
             }
 
             if (user.Status != UserStatus.Active)
-                throw new BusinessException("USER_INACTIVE","User is not active");
+                throw new BusinessException("USER_INACTIVE", "User is not active");
 
 
             // GENERATE TOKENS
-            
+
             var refreshToken = _jwtService.GenerateRefreshToken();
 
             var refreshDays = Convert.ToDouble(_config["Jwt:RefreshTokenExpiryDays"] ?? "7");
@@ -130,20 +130,20 @@ namespace Account_Track.Services.Implementations
 
             var user = users.FirstOrDefault();
             var userId = user.UserId;
-           
+
             if (user == null)
-                throw new BusinessException("INVALID_USER","Invalid user");
+                throw new BusinessException("INVALID_USER", "Invalid user");
 
             var sqlLog = @"EXEC usp_Auth
                             @Action = @Action,
                             @UserId = @UserId,
-                            @RefreshToken = @RefreshToken"; 
-            var logParams = new[] 
+                            @RefreshToken = @RefreshToken";
+            var logParams = new[]
             {
                 new SqlParameter("@Action", "GET_VALID_LOGIN"),
-                new SqlParameter("@UserId", userId), 
-                new SqlParameter("@RefreshToken", dto.RefreshToken) 
-            }; 
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@RefreshToken", dto.RefreshToken)
+            };
             var loginLogs = await _context.Database
                 .SqlQueryRaw<LoginLogDto>(sqlLog, logParams)
                 .ToListAsync();
@@ -163,7 +163,7 @@ namespace Account_Track.Services.Implementations
                     new SqlParameter("@RefreshToken", dto.RefreshToken)
                 );
 
-                throw new BusinessException("INVALID_EXPIRED_TOKEN","Invalid or expired refresh token");
+                throw new BusinessException("INVALID_EXPIRED_TOKEN", "Invalid or expired refresh token");
             }
 
             var newAccessToken = _jwtService.GenerateAccessToken(user, loginId);

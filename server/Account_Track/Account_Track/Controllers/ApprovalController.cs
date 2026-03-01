@@ -26,12 +26,13 @@ namespace Account_Track.Controllers
             try
             {
                 int reviewerId = int.Parse(User.FindFirst("UserId")!.Value);
-
+                int loginId = int.Parse(User.FindFirst("LoginId")!.Value);
                 await _approvalService.UpdateDecisionAsync(
                     approvalId,
                     reviewerId, // trust JWT, not client
                     dto.Decision,
-                    dto.Comments
+                    dto.Comments,
+                    loginId
                 );
 
                 var updated = await _approvalService.GetApprovalDetailAsync(approvalId);
@@ -173,16 +174,17 @@ namespace Account_Track.Controllers
         {
             try
             {
-                var userIdClaim = User.FindFirstValue("UserId");
-                if (!int.TryParse(userIdClaim, out var userId))
-                {
-                    return Unauthorized(new
-                    {
-                        Success = false,
-                        Message = "Invalid or missing UserId claim",
-                        TraceId = HttpContext.TraceIdentifier
-                    });
-                }
+                var userId = int.Parse(User.FindFirst("UserId")!.Value);
+                //var userIdClaim = User.FindFirstValue("UserId");
+                //if (!int.TryParse(userIdClaim, out var userId))
+                //{
+                //    return Unauthorized(new
+                //    {
+                //        Success = false,
+                //        Message = "Invalid or missing UserId claim",
+                //        TraceId = HttpContext.TraceIdentifier
+                //    });
+                //}
 
                 var (data, pagination) = await _approvalService.GetApprovalsAsync(request, userId);
 

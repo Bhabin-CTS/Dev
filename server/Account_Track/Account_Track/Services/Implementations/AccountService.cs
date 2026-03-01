@@ -1,4 +1,6 @@
-﻿using Account_Track.Data;
+﻿
+
+using Account_Track.Data;
 using Account_Track.DTOs;
 using Account_Track.DTOs.AccountDto;
 using Account_Track.Services.Interfaces;
@@ -6,6 +8,7 @@ using Account_Track.Utils; // BusinessException
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace Account_Track.Services.Implementations
 {
@@ -21,7 +24,7 @@ namespace Account_Track.Services.Implementations
         // ------------------------------------------------
         // CREATE
         // ------------------------------------------------
-        public async Task<CreateAccountResponseDto> CreateAccountAsync(CreateAccountRequestDto dto, int userId)
+        public async Task<CreateAccountResponseDto> CreateAccountAsync(CreateAccountRequestDto dto, int userId,int logId)
         {
             if (string.IsNullOrWhiteSpace(dto.CustomerName))
                 throw new BusinessException("INVALID_REQUEST", "customerName is required");
@@ -29,9 +32,21 @@ namespace Account_Track.Services.Implementations
             if (dto.InitialDeposit < 0)
                 throw new BusinessException("INVALID_AMOUNT", "initialDeposit must be >= 0");
 
-            var sql = "EXEC dbo.usp_Account_Create @PerformedByUserId, @CustomerName, @AccountType, @InitialDeposit, @Remarks";
+            // UPDATED: call unified SP with @Action='CREATE'
+            var sql = @"
+                EXEC dbo.usp_Account
+                     @Action=@Action,
+                     @LoginId = @LoginId,
+                     @PerformedByUserId=@PerformedByUserId,
+                     @CustomerName=@CustomerName,
+                     @AccountType=@AccountType,
+                     @InitialDeposit=@InitialDeposit,
+                     @Remarks=@Remarks";
+
             var parameters = new[]
             {
+                new SqlParameter("@Action", "CREATE"),
+                new SqlParameter("LoginId",logId),
                 new SqlParameter("@PerformedByUserId", userId),
                 new SqlParameter("@CustomerName", dto.CustomerName),
                 new SqlParameter("@AccountType", (int)dto.AccountType),
@@ -77,24 +92,38 @@ namespace Account_Track.Services.Implementations
             if (request.Offset < 0)
                 throw new BusinessException("INVALID_PAGINATION", "Offset cannot be negative");
 
-            var sql = @"EXEC dbo.usp_GetAccounts 
-                        @AccountNumber, @AccountType, @Status, @Search,
-                        @FromDate, @ToDate, @SortBy, @SortOrder, 
-                        @Limit, @Offset, @UserId";
+            // UPDATED: map AccountNumber/Search to unified @SearchTerm
+            var searchTerm = request.Search
+                             ?? (request.AccountNumber?.ToString(CultureInfo.InvariantCulture));
+
+            // UPDATED: call unified SP with @Action='LIST'
+            var sql = @"
+                EXEC dbo.usp_Account
+                     @Action=@Action,
+                     @UserId=@UserId,
+                     @Status=@Status,
+                     @SearchTerm=@SearchTerm,
+                     @CreatedFrom=@CreatedFrom,
+                     @CreatedTo=@CreatedTo,
+                     @SortBy=@SortBy,
+                     @SortOrder=@SortOrder,
+                     @Limit=@Limit,
+                     @Offset=@Offset,
+                     @AccountType=@AccountType";
 
             var parameters = new[]
             {
-                new SqlParameter("@AccountNumber", request.AccountNumber ?? (object)DBNull.Value),
-                new SqlParameter("@AccountType",  request.AccountType   ?? (object)DBNull.Value),
-                new SqlParameter("@Status",       request.Status        ?? (object)DBNull.Value),
-                new SqlParameter("@Search",       (object?)request.Search ?? DBNull.Value),
-                new SqlParameter("@FromDate",     request.FromDate      ?? (object)DBNull.Value),
-                new SqlParameter("@ToDate",       request.ToDate        ?? (object)DBNull.Value),
+                new SqlParameter("@Action", "LIST"),
+                new SqlParameter("@UserId", userId),
+                new SqlParameter("@Status",       (object?)request.Status ?? DBNull.Value),
+                new SqlParameter("@SearchTerm",   (object?)searchTerm ?? DBNull.Value),
+                new SqlParameter("@CreatedFrom",  (object?)request.FromDate ?? DBNull.Value),
+                new SqlParameter("@CreatedTo",    (object?)request.ToDate ?? DBNull.Value),
                 new SqlParameter("@SortBy",       (object?)request.SortBy ?? DBNull.Value),
                 new SqlParameter("@SortOrder",    (object?)request.SortOrder ?? DBNull.Value),
                 new SqlParameter("@Limit",        request.Limit),
                 new SqlParameter("@Offset",       request.Offset),
-                new SqlParameter("@UserId",       userId)
+                new SqlParameter("@AccountType",  (object?)request.AccountType ?? DBNull.Value)
             };
 
             var rows = await _db.Database
@@ -121,9 +150,16 @@ namespace Account_Track.Services.Implementations
             if (accountId <= 0)
                 throw new BusinessException("INVALID_ID", "AccountId must be a positive integer");
 
-            var sql = "EXEC dbo.usp_GetAccountById @AccountId, @UserId";
+            // UPDATED: call unified SP with @Action='GET_BY_ID'
+            var sql = @"
+                EXEC dbo.usp_Account
+                     @Action=@Action,
+                     @AccountId=@AccountId,
+                     @UserId=@UserId";
+
             var parameters = new[]
             {
+                new SqlParameter("@Action", "GET_BY_ID"),
                 new SqlParameter("@AccountId", accountId),
                 new SqlParameter("@UserId", userId)
             };
@@ -143,7 +179,7 @@ namespace Account_Track.Services.Implementations
         // ------------------------------------------------
         // UPDATE (RowVersion concurrency via Base64)
         // ------------------------------------------------
-        public async Task<AccountDetailResponseDto> UpdateAccountAsync(int accountId, UpdateAccountRequestDto dto, int userId)
+        public async Task<AccountDetailResponseDto> UpdateAccountAsync(int accountId, UpdateAccountRequestDto dto, int userId, int logId)
         {
             if (accountId <= 0)
                 throw new BusinessException("INVALID_ID", "AccountId must be a positive integer");
@@ -151,18 +187,23 @@ namespace Account_Track.Services.Implementations
             if (string.IsNullOrWhiteSpace(dto.RowVersionBase64))
                 throw new BusinessException("INVALID_REQUEST", "rowVersionBase64 is required");
 
+            // UPDATED: call unified SP with @Action='UPDATE'
             var sql = @"
-                EXEC dbo.usp_Account_Update 
-                    @AccountId=@AccountId,
-                    @CustomerName=@CustomerName,
-                    @Status=@Status,
-                    @Remarks=@Remarks,
-                    @RowVersionBase64=@RowVersionBase64,
-                    @PerformedByUserId=@PerformedByUserId,
-                    @AccountType=@AccountType;";
+                EXEC dbo.usp_Account
+                     @Action=@Action,
+                     @LoginId = @LoginId,
+                     @AccountId=@AccountId,
+                     @CustomerName=@CustomerName,
+                     @Status=@Status,
+                     @Remarks=@Remarks,
+                     @RowVersionBase64=@RowVersionBase64,
+                     @PerformedByUserId=@PerformedByUserId,
+                     @AccountType=@AccountType";
 
             var parameters = new[]
             {
+                new SqlParameter("@Action", "UPDATE"),
+                new SqlParameter("@LoginId",logId),
                 new SqlParameter("@AccountId", accountId),
                 new SqlParameter("@CustomerName", (object?)dto.CustomerName ?? DBNull.Value),
                 new SqlParameter("@Status", dto.Status ?? (object)DBNull.Value),

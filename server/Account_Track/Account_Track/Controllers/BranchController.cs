@@ -10,7 +10,7 @@ using Microsoft.Data.SqlClient;
 namespace Account_Track.Controllers
 {
     [ApiController]
-    [Route("v1/[controller]")] 
+    [Route("v1/[controller]")]
     public class BranchesController : ControllerBase
     {
         private readonly IBranchService _service;

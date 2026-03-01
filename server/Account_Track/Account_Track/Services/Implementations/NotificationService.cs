@@ -50,7 +50,7 @@ namespace Account_Track.Services.Implementations
 
             var affected = await _context.Database
                 .ExecuteSqlRawAsync(sql, parameters);
-             
+
             if (affected == 0)
                 throw new BusinessException("NOT_FOUND", "No notifications updated");
         }
