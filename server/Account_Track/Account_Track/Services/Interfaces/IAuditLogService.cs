@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using Account_Track.DTOs;
+﻿using Account_Track.DTOs;
+using Account_Track.DTOs.AuditLogDto;
 
 namespace Account_Track.Services
 {
@@ -10,7 +9,7 @@ namespace Account_Track.Services
         Task<(List<AuditLogDto> Items, PaginationDto Pagination)> GetAsync(AuditLogQueryDto query);
 
         // GET BY ID using SP
-        Task<AuditLogDto?> GetByIdSpAsync(int id, string? action = null);
+        Task<AuditLogDto?> GetByIdSpAsync(int id);
 
     }
 }

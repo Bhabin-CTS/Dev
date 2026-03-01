@@ -1,8 +1,6 @@
-﻿using System;
-
-namespace Account_Track.DTOs.AuditLogDto
+﻿namespace Account_Track.DTOs.AuditLogDto
 {
-    public class AuditLogDto
+    public class AuditLogGetByIdSpResultDto
     {
         public int AuditLogId { get; set; }
         public int UserId { get; set; }
@@ -10,12 +8,10 @@ namespace Account_Track.DTOs.AuditLogDto
         public string EntityType { get; set; } = default!;
         public int EntityId { get; set; }
         public string Action { get; set; } = default!;
-        public string? BeforeState { get; set; }
-        public string AfterState { get; set; } = default!;
-        public DateTime CreatedAt { get; set; } // UTC
-
-        // Added fields
+        public string? beforeState { get; set; }
+        public string afterState { get; set; } = default!;
+        public DateTime CreatedAt { get; set; }
         public string? ChangedByName { get; set; }
-        public string? ChangedByRole { get; set; }
+        public int ChangedByRoleId { get; set; }
     }
 }

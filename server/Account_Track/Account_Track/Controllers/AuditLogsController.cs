@@ -1,9 +1,9 @@
 ﻿using Account_Track.DTOs;
+using Account_Track.DTOs.AuditLogDto;
 using Account_Track.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+
 
 namespace Account_Track.Controllers
 {
@@ -42,11 +42,11 @@ namespace Account_Track.Controllers
         // ======================================================
         [HttpGet("{id:int}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAuditLogById([FromRoute] int id, [FromQuery] string? action = null)
+        public async Task<IActionResult> GetAuditLogById([FromRoute] int id)
         {
             var traceId = HttpContext.TraceIdentifier;
 
-            var item = await _service.GetByIdSpAsync(id, action);
+            var item = await _service.GetByIdSpAsync(id);
 
             if (item is null)
             {

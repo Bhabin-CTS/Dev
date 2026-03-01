@@ -1,13 +1,9 @@
 ﻿using Account_Track.Data;
 using Account_Track.DTOs;
-using Account_Track.Services;
-using Account_Track.Utils;
+using Account_Track.DTOs.AuditLogDto;
 using Account_Track.Utils.Enum;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Account_Track.Services.Implementations
 {
@@ -25,83 +21,70 @@ namespace Account_Track.Services.Implementations
         // ============================================================
         public async Task<(List<AuditLogDto> Items, PaginationDto Pagination)> GetAsync(AuditLogQueryDto query)
         {
-            var sqlConn = (SqlConnection)_context.Database.GetDbConnection();
+            var sql = @"
+                EXEC dbo.usp_AuditLog
+                    @Action = @Action,
+                    @AuditLogId = @AuditLogId,
+                    @UserId = @UserId,
+                    @LoginId = @LoginId,
+                    @EntityType = @EntityType,
+                    @EntityId = @EntityId,
+                    @AuditAction = @AuditAction,
+                    @SearchText = @SearchText,
+                    @FromUtc = @FromUtc,
+                    @ToUtc = @ToUtc,
+                    @SortBy = @SortBy,
+                    @SortOrder = @SortOrder,
+                    @Limit = @Limit,
+                    @Offset = @Offset";
 
-            await using var cmd = new SqlCommand("dbo.usp_AuditLog", sqlConn)
+            var parameters = new[]
             {
-                CommandType = System.Data.CommandType.StoredProcedure
+                new SqlParameter("@Action", "LIST"),
+                new SqlParameter("@AuditLogId", DBNull.Value),
+                new SqlParameter("@UserId", query.UserId ?? (object)DBNull.Value),
+                new SqlParameter("@LoginId", query.LoginId ?? (object)DBNull.Value),
+                new SqlParameter("@EntityType", query.EntityType ?? (object)DBNull.Value),
+                new SqlParameter("@EntityId", query.EntityId ?? (object)DBNull.Value),
+                new SqlParameter("@AuditAction", query.Action ?? (object)DBNull.Value),
+                new SqlParameter("@SearchText", query.SearchText ?? (object)DBNull.Value),
+                new SqlParameter("@FromUtc", query.FromUtc ?? (object)DBNull.Value),
+                new SqlParameter("@ToUtc", query.ToUtc ?? (object)DBNull.Value),
+                new SqlParameter("@SortBy", query.SortBy ?? "CreatedAt"),
+                new SqlParameter("@SortOrder", query.SortOrder ?? "DESC"),
+                new SqlParameter("@Limit", query.Limit),
+                new SqlParameter("@Offset", query.Offset)
             };
 
-            // required action
-            cmd.Parameters.AddWithValue("@Action", "LIST");
+            var spResult = await _context.Database
+                .SqlQueryRaw<AuditLogSpResultDto>(sql, parameters)
+                .ToListAsync();
 
-            // filters
-            cmd.Parameters.AddWithValue("@AuditLogId", DBNull.Value);
-            cmd.Parameters.AddWithValue("@AuditAction", (object?)query.Action ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@UserId", (object?)query.UserId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@LoginId", (object?)query.LoginId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@EntityType", (object?)query.EntityType ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@EntityId", (object?)query.EntityId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@FromUtc", (object?)query.FromUtc ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@ToUtc", (object?)query.ToUtc ?? DBNull.Value);
+            int total = spResult.FirstOrDefault()?.TotalCount ?? 0;
 
-            // sorting + paging
-            cmd.Parameters.AddWithValue("@SortBy", query.SortBy ?? "createdat");
-            cmd.Parameters.AddWithValue("@SortDir", query.SortDir ?? "desc");
-            cmd.Parameters.AddWithValue("@Limit", query.Limit);
-            cmd.Parameters.AddWithValue("@Offset", query.Offset);
-
-            bool wasClosed = sqlConn.State == System.Data.ConnectionState.Closed;
-            if (wasClosed) await sqlConn.OpenAsync();
-
-            var list = new List<AuditLogDto>();
-            int total = 0;
-
-            try
+            var data = spResult.Select(x =>
             {
-                await using var reader = await cmd.ExecuteReaderAsync();
+                string? roleName = Enum.IsDefined(typeof(UserRole), x.ChangedByRoleId)
+                    ? ((UserRole)x.ChangedByRoleId).ToString()
+                    : null;
 
-                while (await reader.ReadAsync())
+                return new AuditLogDto
                 {
-                    // convert enum id to name
-                    int roleId = reader.IsDBNull(reader.GetOrdinal("ChangedByRoleId"))
-                        ? -1
-                        : reader.GetInt32(reader.GetOrdinal("ChangedByRoleId"));
+                    AuditLogId = x.AuditLogId,
+                    UserId = x.UserId,
+                    LoginId = x.LoginId,
+                    EntityType = x.EntityType,
+                    EntityId = x.EntityId,
+                    Action = x.Action,
+                    BeforeState = x.beforeState,
+                    AfterState = x.afterState,
+                    CreatedAt = x.CreatedAt,
+                    ChangedByName = x.ChangedByName,
+                    ChangedByRole = roleName
+                };
+            }).ToList();
 
-                    string? roleName = Enum.IsDefined(typeof(UserRole), roleId)
-                        ? ((UserRole)roleId).ToString()
-                        : null;
-
-                    list.Add(new AuditLogDto
-                    {
-                        AuditLogId = reader.GetInt32(reader.GetOrdinal("AuditLogId")),
-                        UserId = reader.GetInt32(reader.GetOrdinal("UserId")),
-                        LoginId = reader.GetInt32(reader.GetOrdinal("LoginId")),
-                        EntityType = reader.GetString(reader.GetOrdinal("EntityType")),
-                        EntityId = reader.GetInt32(reader.GetOrdinal("EntityId")),
-                        Action = reader.GetString(reader.GetOrdinal("Action")),
-                        BeforeState = reader.IsDBNull(reader.GetOrdinal("beforeState"))
-                            ? null
-                            : reader.GetString(reader.GetOrdinal("beforeState")),
-                        AfterState = reader.GetString(reader.GetOrdinal("afterState")),
-                        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                        ChangedByName = reader.IsDBNull(reader.GetOrdinal("ChangedByName"))
-                            ? null
-                            : reader.GetString(reader.GetOrdinal("ChangedByName")),
-                        ChangedByRole = roleName
-                    });
-
-                    if (total == 0 && !reader.IsDBNull(reader.GetOrdinal("TotalCount")))
-                        total = reader.GetInt32(reader.GetOrdinal("TotalCount"));
-                }
-            }
-            finally
-            {
-                if (sqlConn.State == System.Data.ConnectionState.Open)
-                    await sqlConn.CloseAsync();
-            }
-
-            return (list, new PaginationDto
+            return (data, new PaginationDto
             {
                 Total = total,
                 Limit = query.Limit,
@@ -109,78 +92,50 @@ namespace Account_Track.Services.Implementations
             });
         }
 
+
         // ============================================================
         // GET BY ID 
         // ============================================================
-        public async Task<AuditLogDto?> GetByIdSpAsync(int id, string? action = null)
+        public async Task<AuditLogDto?> GetByIdSpAsync(int id)
         {
-            var sqlConn = (SqlConnection)_context.Database.GetDbConnection();
+            var sql = @"
+                EXEC dbo.usp_AuditLog
+                    @Action = @Action,
+                    @AuditLogId = @AuditLogId";
 
-            await using var cmd = new SqlCommand("dbo.usp_AuditLog", sqlConn)
+            var parameters = new[]
             {
-                CommandType = System.Data.CommandType.StoredProcedure
+                new SqlParameter("@Action", "GET_BY_ID"),
+                new SqlParameter("@AuditLogId", id)
             };
 
-            cmd.Parameters.AddWithValue("@Action", "GET_BY_ID");
-            cmd.Parameters.AddWithValue("@AuditLogId", id);
-            cmd.Parameters.AddWithValue("@AuditAction", (object?)action ?? DBNull.Value);
+            var result = await _context.Database
+                .SqlQueryRaw<AuditLogGetByIdSpResultDto>(sql, parameters)
+                .ToListAsync();
 
-            // unused params required by SP
-            cmd.Parameters.AddWithValue("@UserId", DBNull.Value);
-            cmd.Parameters.AddWithValue("@LoginId", DBNull.Value);
-            cmd.Parameters.AddWithValue("@EntityType", DBNull.Value);
-            cmd.Parameters.AddWithValue("@EntityId", DBNull.Value);
-            cmd.Parameters.AddWithValue("@FromUtc", DBNull.Value);
-            cmd.Parameters.AddWithValue("@ToUtc", DBNull.Value);
-            cmd.Parameters.AddWithValue("@SortBy", DBNull.Value);
-            cmd.Parameters.AddWithValue("@SortDir", DBNull.Value);
-            cmd.Parameters.AddWithValue("@Limit", DBNull.Value);
-            cmd.Parameters.AddWithValue("@Offset", DBNull.Value);
+            var item = result.FirstOrDefault();
+            if (item == null)
+                return null;
 
-            if (sqlConn.State == System.Data.ConnectionState.Closed)
-                await sqlConn.OpenAsync();
+            string? roleName = Enum.IsDefined(typeof(UserRole), item.ChangedByRoleId)
+                ? ((UserRole)item.ChangedByRoleId).ToString()
+                : null;
 
-            try
+            return new AuditLogDto
             {
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                if (!await reader.ReadAsync())
-                    return null;
-
-                int roleId = reader.IsDBNull(reader.GetOrdinal("ChangedByRoleId"))
-                    ? -1
-                    : reader.GetInt32(reader.GetOrdinal("ChangedByRoleId"));
-
-                string? roleName = Enum.IsDefined(typeof(UserRole), roleId)
-                    ? ((UserRole)roleId).ToString()
-                    : null;
-
-                return new AuditLogDto
-                {
-                    AuditLogId = reader.GetInt32(reader.GetOrdinal("AuditLogId")),
-                    UserId = reader.GetInt32(reader.GetOrdinal("UserId")),
-                    LoginId = reader.GetInt32(reader.GetOrdinal("LoginId")),
-                    EntityType = reader.GetString(reader.GetOrdinal("EntityType")),
-                    EntityId = reader.GetInt32(reader.GetOrdinal("EntityId")),
-                    Action = reader.GetString(reader.GetOrdinal("Action")),
-                    BeforeState = reader.IsDBNull(reader.GetOrdinal("beforeState"))
-                        ? null
-                        : reader.GetString(reader.GetOrdinal("beforeState")),
-                    AfterState = reader.GetString(reader.GetOrdinal("afterState")),
-                    CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                    ChangedByName = reader.IsDBNull(reader.GetOrdinal("ChangedByName"))
-                        ? null
-                        : reader.GetString(reader.GetOrdinal("ChangedByName")),
-                    ChangedByRole = roleName
-                };
-            }
-            finally
-            {
-                if (sqlConn.State == System.Data.ConnectionState.Open)
-                    await sqlConn.CloseAsync();
-            }
+                AuditLogId = item.AuditLogId,
+                UserId = item.UserId,
+                LoginId = item.LoginId,
+                EntityType = item.EntityType,
+                EntityId = item.EntityId,
+                Action = item.Action,
+                BeforeState = item.beforeState,
+                AfterState = item.afterState,
+                CreatedAt = item.CreatedAt,
+                ChangedByName = item.ChangedByName,
+                ChangedByRole = roleName
+            };
         }
 
-       
     }
 }

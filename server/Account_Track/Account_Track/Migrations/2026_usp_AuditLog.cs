@@ -11,113 +11,94 @@ namespace Account_Track.Migrations
             var sp = @"
             CREATE OR ALTER PROCEDURE dbo.usp_AuditLog
             (
-                @Action       VARCHAR(20),
+                @Action        VARCHAR(20),
 
-                -- Shared filters
-                @AuditLogId   INT = NULL,
-                @UserId       INT = NULL,
-                @LoginId      INT = NULL,
-                @EntityType   NVARCHAR(100) = NULL,
-                @EntityId     INT = NULL,
-                @AuditAction  NVARCHAR(100) = NULL,
+                -- Filters
+                @AuditLogId    INT = NULL,
+                @UserId        INT = NULL,
+                @LoginId       INT = NULL,
+                @EntityType    NVARCHAR(100) = NULL,
+                @EntityId      INT = NULL,
+                @AuditAction   NVARCHAR(100) = NULL,
 
-                -- Time filters
-                @FromUtc      DATETIME2 = NULL,
-                @ToUtc        DATETIME2 = NULL,
+                -- Search
+                @SearchText    NVARCHAR(200) = NULL,
 
-                -- Sorting
-                @SortBy       NVARCHAR(50) = 'createdat',
-                @SortDir      NVARCHAR(4)  = 'desc',
+                -- Date filters
+                @FromUtc       DATETIME2 = NULL,
+                @ToUtc         DATETIME2 = NULL,
 
-                -- Pagination
-                @Limit        INT = 25,
-                @Offset       INT = 0
+                -- Sorting & Paging
+                @SortBy        NVARCHAR(50) = 'CreatedAt',
+                @SortOrder     NVARCHAR(4)  = 'DESC',
+                @Limit         INT = 20,
+                @Offset        INT = 0
             )
             AS
             BEGIN
                 SET NOCOUNT ON;
 
-                -------------------------------------------------------------------
-                -- LIST ACTION
-                -------------------------------------------------------------------
+                ------------------------------------------------------------
+                -- LIST
+                ------------------------------------------------------------
                 IF @Action = 'LIST'
                 BEGIN
-                    IF @Limit  < 1   SET @Limit = 25;
-                    IF @Limit  > 100 SET @Limit = 100;
-                    IF @Offset < 0   SET @Offset = 0;
+                    SELECT
+                        a.AuditLogId,
+                        a.UserId,
+                        a.LoginId,
+                        a.EntityType,
+                        a.EntityId,
+                        a.Action,
+                        a.beforeState,
+                        a.afterState,
+                        a.CreatedAt,
+                        u.Name AS ChangedByName,
+                        CAST(u.Role AS INT) AS ChangedByRoleId,
+                        COUNT(*) OVER() AS TotalCount
+                    FROM t_AuditLog a
+                    LEFT JOIN t_User u ON u.UserId = a.UserId
+                    WHERE
+                        (@UserId IS NULL OR a.UserId = @UserId)
+                        AND (@LoginId IS NULL OR a.LoginId = @LoginId)
+                        AND (@EntityType IS NULL OR a.EntityType = @EntityType)
+                        AND (@EntityId IS NULL OR a.EntityId = @EntityId)
+                        AND (@AuditAction IS NULL OR a.Action = @AuditAction)
+                        AND (@FromUtc IS NULL OR a.CreatedAt >= @FromUtc)
+                        AND (@ToUtc IS NULL OR a.CreatedAt <= @ToUtc)
 
-                    SET @SortBy  = LOWER(@SortBy);
-                    SET @SortDir = LOWER(@SortDir);
-                    IF @SortDir NOT IN ('asc','desc') SET @SortDir = 'desc';
+                        -- 🔎 Search filter
+                        AND (
+                            @SearchText IS NULL OR
+                            a.EntityType LIKE '%' + @SearchText + '%' OR
+                            a.Action LIKE '%' + @SearchText + '%' OR
+                            u.Name LIKE '%' + @SearchText + '%'
+                        )
 
-                    ;WITH F AS
-                    (
-                        SELECT 
-                            a.AuditLogId,
-                            a.UserId,
-                            a.LoginId,
-                            a.EntityType,
-                            a.EntityId,
-                            a.Action,
-                            a.beforeState,
-                            a.afterState,
-                            a.CreatedAt
-                        FROM t_AuditLog a
-                        WHERE 
-                            (@UserId     IS NULL OR a.UserId = @UserId)
-                            AND (@LoginId    IS NULL OR a.LoginId = @LoginId)
-                            AND (@EntityType IS NULL OR a.EntityType = @EntityType)
-                            AND (@EntityId   IS NULL OR a.EntityId   = @EntityId)
-                            AND (@AuditAction IS NULL OR a.Action    = @AuditAction)
-                            AND (@FromUtc     IS NULL OR a.CreatedAt >= @FromUtc)
-                            AND (@ToUtc       IS NULL OR a.CreatedAt <= @ToUtc)
-                    ),
-                    X AS
-                    (
-                        SELECT
-                            F.*,
-                            u.Name              AS ChangedByName,
-                            CAST(u.Role AS INT) AS ChangedByRoleId,
-                            COUNT(*) OVER()     AS TotalCount,
-                            ROW_NUMBER() OVER
-                            (
-                                ORDER BY
-                                    CASE WHEN @SortBy = 'createdat'  AND @SortDir = 'asc'  THEN F.CreatedAt END ASC,
-                                    CASE WHEN @SortBy = 'createdat'  AND @SortDir = 'desc' THEN F.CreatedAt END DESC,
-                                    CASE WHEN @SortBy = 'entitytype' AND @SortDir = 'asc'  THEN F.EntityType END ASC,
-                                    CASE WHEN @SortBy = 'entitytype' AND @SortDir = 'desc' THEN F.EntityType END DESC,
-                                    CASE WHEN @SortBy = 'action'     AND @SortDir = 'asc'  THEN F.Action     END ASC,
-                                    CASE WHEN @SortBy = 'action'     AND @SortDir = 'desc' THEN F.Action     END DESC,
-                                    F.AuditLogId DESC
-                            ) AS rn
-                        FROM F
-                        LEFT JOIN t_User u ON u.UserId = F.UserId
-                    )
-                    SELECT 
-                        AuditLogId,
-                        UserId,
-                        LoginId,
-                        EntityType,
-                        EntityId,
-                        Action,
-                        beforeState,
-                        afterState,
-                        CreatedAt,
-                        ChangedByName,
-                        ChangedByRoleId,
-                        TotalCount
-                    FROM X
-                    WHERE rn BETWEEN (@Offset + 1) AND (@Offset + @Limit);
+                    ORDER BY
+                        CASE WHEN @SortBy = 'CreatedAt' AND @SortOrder = 'ASC' THEN a.CreatedAt END ASC,
+                        CASE WHEN @SortBy = 'CreatedAt' AND @SortOrder = 'DESC' THEN a.CreatedAt END DESC,
+
+                        CASE WHEN @SortBy = 'EntityType' AND @SortOrder = 'ASC' THEN a.EntityType END ASC,
+                        CASE WHEN @SortBy = 'EntityType' AND @SortOrder = 'DESC' THEN a.EntityType END DESC,
+
+                        CASE WHEN @SortBy = 'Action' AND @SortOrder = 'ASC' THEN a.Action END ASC,
+                        CASE WHEN @SortBy = 'Action' AND @SortOrder = 'DESC' THEN a.Action END DESC,
+
+                        a.AuditLogId DESC
+
+                    OFFSET @Offset ROWS
+                    FETCH NEXT @Limit ROWS ONLY;
 
                     RETURN;
                 END
 
-                -------------------------------------------------------------------
-                -- GET_BY_ID ACTION
-                -------------------------------------------------------------------
+                ------------------------------------------------------------
+                -- GET BY ID
+                ------------------------------------------------------------
                 IF @Action = 'GET_BY_ID'
                 BEGIN
-                    SELECT 
+                    SELECT
                         a.AuditLogId,
                         a.UserId,
                         a.LoginId,
@@ -131,13 +112,10 @@ namespace Account_Track.Migrations
                         CAST(u.Role AS INT) AS ChangedByRoleId
                     FROM t_AuditLog a
                     LEFT JOIN t_User u ON u.UserId = a.UserId
-                    WHERE 
-                        a.AuditLogId = @AuditLogId
-                        AND (@AuditAction IS NULL OR a.Action = @AuditAction);
+                    WHERE a.AuditLogId = @AuditLogId;
 
                     RETURN;
                 END
-
             END
             ";
             migrationBuilder.Sql(sp);
